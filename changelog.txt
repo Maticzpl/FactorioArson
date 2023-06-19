@@ -1,0 +1,7 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 19. 06. 2023
+  Minor changes:
+    - Fire on belts will spread slower by default.
+    - The default chance for a power pole to catch on fire is increased to 10%.
+    - Explosion and fireball sizes for fluid tanks and container has been adjusted.
