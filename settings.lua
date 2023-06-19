@@ -52,7 +52,5 @@ data:extend({
         default_value = 10.0,
         minimum_value = 0.0,
         maximum_value = 100.0,
-    },
-    
-    
+    }
 })
