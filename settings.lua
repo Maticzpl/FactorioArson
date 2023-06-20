@@ -52,5 +52,11 @@ data:extend({
         default_value = 10.0,
         minimum_value = 0.0,
         maximum_value = 100.0,
-    }
+    },
+    {
+        type = "bool-setting",
+        name = "maticzplars-burn-ground-items",
+        setting_type = "runtime-global",
+        default_value = true,
+    },
 })

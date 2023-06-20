@@ -6,3 +6,12 @@ Date: 19. 06. 2023
     - Fire on belts will spread slower by default.
     - The default chance for a power pole to catch on fire is increased to 10%.
     - Explosion and fireball sizes for fluid tanks and container has been adjusted.
+---------------------------------------------------------------------------------------------------
+Version: 0.1.2
+Date: 20. 06. 2023
+  Major changes:
+    - Rockets and cannon shells are now explosive
+    - Items on ground can now catch fire (configurable)
+  Minor changes:
+    - Updated description
+    - Updated icon
