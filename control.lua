@@ -1,4 +1,22 @@
+local items_from_recipes = require("lua/calc_flammability")
+
 local fires = {}
+
+local function generate_barrels()    
+    for _, fluid in pairs(global.fluids) do
+        local name = fluid.name.."-barrel"
+        if global.flammable[name] == nil then            
+            global.flammable[name] = {
+                fireball=fluid.fireball,
+                cooldown=10,
+                strength=fluid.strength,
+                name=name,
+                explosion_radius=fluid.explosion_radius,
+                explosion=fluid.explosion
+            }
+        end
+    end
+end
 
 local function load_flammables()    
     global.flammable = {
@@ -6,10 +24,10 @@ local function load_flammables()
         ["coal"] = {fireball=false, cooldown=2, strength=7, name="coal"},
         ["solid-fuel"] = {fireball=false, cooldown=1, strength=10, name="solid-fuel"},
     
-        ["crude-oil-barrel"] = {fireball=true, cooldown=10, strength=6, name="crude-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.3},
-        ["heavy-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="heavy-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
-        ["light-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="light-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
-        ["petroleum-gas-barrel"] = {fireball=true, cooldown=10, strength=10, name="petroleum-gas-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
+        -- ["crude-oil-barrel"] = {fireball=true, cooldown=10, strength=6, name="crude-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.3},
+        -- ["heavy-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="heavy-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
+        -- ["light-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="light-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
+        -- ["petroleum-gas-barrel"] = {fireball=true, cooldown=10, strength=10, name="petroleum-gas-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
     
         ["rocket-fuel"] = {fireball=true, cooldown=8, strength=15, name="rocket-fuel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=1},
         ["flamethrower-ammo"] = {fireball=true, cooldown=10, strength=16, name="flamethrower-ammo", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
@@ -36,11 +54,14 @@ local function load_flammables()
     
     global.fluids =   
     {
-        {strength=6, name="crude-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
-        {strength=10, name="light-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},
-        {strength=10, name="heavy-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},    
-        {strength=10, name="petroleum-gas", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.7}, -- not even a fluid lol
+        ["crude-oil"] = {fireball=true, strength=6, name="crude-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
+        ["light-oil"] = {fireball=true, strength=10, name="light-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},
+        ["heavy-oil"] = {fireball=true, strength=10, name="heavy-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},    
+        ["petroleum-gas"] = {fireball=true, strength=10, name="petroleum-gas", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.7}, -- not even a fluid lol
     }
+
+    generate_barrels()
+    items_from_recipes()
 end
 
 script.on_init(load_flammables)
@@ -70,7 +91,7 @@ local function on_belt_fire(event)
                 end                  
                 
                 if global.cooldown[ent.unit_number][i] == nil then
-                    global.cooldown[ent.unit_number][i] = ( fuel.cooldown * (fuel.strength / 10) * 3 ) / settings.global["maticzplars-belt-spread"].value
+                    global.cooldown[ent.unit_number][i] = ( fuel.cooldown * (math.max(fuel.strength,3) / 10) * 3 ) / settings.global["maticzplars-belt-spread"].value
                 end   
 
                 if global.cooldown[ent.unit_number][i] <= 0 then
@@ -208,7 +229,7 @@ local function on_tank_fire(event)
         return
     end
 
-    for _, fuel in ipairs(global.fluids) do
+    for _, fuel in pairs(global.fluids) do
         local fname = fuel.name;
         local contents = ent.get_fluid_contents()
 
@@ -255,7 +276,7 @@ local function on_tank_fire(event)
                     end                                
                 end
 
-                if settings.global["maticzplars-fireball"].value and (fuel.fireball or fuel.fireball == nil) then                    
+                if settings.global["maticzplars-fireball"].value and fuel.fireball then                    
                     radius = radius * 3.5
                     local r = math.ceil(radius) + 1                        
                     for x = -r, r, 2 do
@@ -390,14 +411,14 @@ remote.add_interface("maticzplars-flammables", {
     ---@param explosion_radius double
     ---@param explosion_prototype string?
     add_item = function (name, fire_strength, fire_spread_cooldown, make_fireball, explosion_radius, explosion_prototype)
-        table.insert(global.flammable, {                
+        global.flammable[name] = {                
             fireball=make_fireball,
             cooldown=fire_spread_cooldown,
             strength=fire_strength,
             name= name,
             explosion_radius=explosion_radius,
             explosion=explosion_prototype or "maticzplars-rocket-fuel-explosion"
-        })
+        }
     end,
 
     ---@param name string
@@ -406,13 +427,14 @@ remote.add_interface("maticzplars-flammables", {
     ---@param explosion_radius double
     ---@param explosion_prototype string?
     add_fluid = function (name, fire_strength, make_fireball, explosion_radius, explosion_prototype)
-        table.insert(global.fluids, {                
+        global.fluids[name] = {                
             fireball=make_fireball,
             strength=fire_strength,
             name= name,
             explosion_radius=explosion_radius,
             explosion=explosion_prototype or "maticzplars-rocket-fuel-explosion"
-        })
+        }
+        generate_barrels()
     end
 })
 

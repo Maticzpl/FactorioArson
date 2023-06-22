@@ -15,3 +15,10 @@ Date: 20. 06. 2023
   Minor changes:
     - Updated description
     - Updated icon
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 21. 06. 2023
+  Major changes:
+    - Calculating flammability of items based on recipe
+    - Because of the above, a lot more vanilla items are flammable
+    - Modded items should be flammable if their ingrediants are flammable

@@ -59,4 +59,10 @@ data:extend({
         setting_type = "runtime-global",
         default_value = true,
     },
+    {
+        type = "bool-setting",
+        name = "maticzplars-burn-lubricant",
+        setting_type = "runtime-global",
+        default_value = false,
+    },    
 })
