@@ -90,8 +90,9 @@ local function calculate_proximity(items, fluids)
     return proximity
 end
 
-
-local function items_from_recipes()    
+-- This is gonna cause some lag on save init / config change
+---@param ignore string[]?
+local function items_from_recipes(ignore)    
     local recipes_by_items = {}
     local recipes_by_fluids = {}
 
@@ -114,6 +115,11 @@ local function items_from_recipes()
     }
     if not settings.global["maticzplars-burn-lubricant"].value then
         table.insert(dont_calculate, "lubricant")
+    end
+    if ignore then        
+        for _, name in ipairs(ignore) do
+            table.insert(dont_calculate, name)
+        end
     end
 
     local itterated = {}
