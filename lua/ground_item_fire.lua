@@ -76,18 +76,21 @@ local function init()
                 if f and #f > 0 then              
                     for i = 1, math.max(#f/4, 1), 1 do                    
                         local i = math.random(1, #f)
+                        --- @type LuaEntity
                         local entity = f[i]
 
-                        local items = surface.find_entities_filtered({
-                            type = "item-entity",
-                            position = entity.position,
-                            radius = 2
-                        })
+                        if entity.valid then      
+                            local items = surface.find_entities_filtered({
+                                type = "item-entity",
+                                position = entity.position,
+                                radius = 2
+                            })
 
-                        for _, item in pairs(items) do
-                            if global.flammable[item.stack.name] ~= nil then
-                                on_item_fire(item)
-                            end                    
+                            for _, item in pairs(items) do
+                                if global.flammable[item.stack.name] ~= nil then
+                                    on_item_fire(item)
+                                end                    
+                            end
                         end
                     end 
                 end

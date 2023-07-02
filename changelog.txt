@@ -27,3 +27,8 @@ Version: 0.2.1
 Date: 24. 06. 2023
   Minor changes:
     - Added interface for recalculating flammability of items / fluids
+---------------------------------------------------------------------------------------------------
+Version: 0.2.2
+Date: 02. 07. 2023
+  Minor changes:
+    - Hopefully fix a crash with invalid items on ground
