@@ -99,6 +99,7 @@ local function items_from_recipes(ignore)
     populate_recipe_table(recipes_by_items, recipes_by_fluids)
 
     local proximity = calculate_proximity(recipes_by_items, recipes_by_fluids)
+	global.proximity_cache = proximity
 
     local dont_calculate = {
         "electronic%-circuit",

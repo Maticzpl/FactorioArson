@@ -3,6 +3,7 @@ local on_belt_fire = require("lua/belt_fire")
 local on_container_fire = require("lua/container_fire")
 local on_tank_fire = require("lua/fluid_tank_fire")
 local init_ground_item_fire_events = require("lua/ground_item_fire")
+local show_gui = require("lua/gui")
 
 
 local function generate_barrels()    
@@ -72,6 +73,7 @@ script.on_configuration_changed(load_flammables)
 
 script.on_event(
     defines.events.on_entity_damaged, 
+	--- @param event EventData.on_entity_damaged
     function (event)        
         if event.entity.get_inventory(defines.inventory.chest) or 
             event.entity.get_inventory(defines.inventory.cargo_wagon) or 
@@ -85,6 +87,7 @@ script.on_event(
     end,
     {
         {filter = "damage-type", type = "fire"},
+		--- @diagnostic disable-next-line missing-fields
         {filter = "transport-belt-connectable", mode="and"},
 
         {filter = "damage-type", type = "fire"},
@@ -106,6 +109,7 @@ script.on_event(
 
 script.on_event(
     defines.events.on_entity_died,
+	--- @param event EventData.on_entity_died
     function (event)
         if math.random(0, 100) < settings.global["maticzplars-pole-fire"].value then   
             local has_power = false
@@ -116,6 +120,7 @@ script.on_event(
             end
 
             if has_power then
+				--- @diagnostic disable-next-line missing-fields
                 event.entity.surface.create_entity({
                     name="fire-flame", 
                     position=event.entity.position,
@@ -128,6 +133,11 @@ script.on_event(
     {
         {filter = "type", type = "electric-pole"},
     }
+)
+
+script.on_event(
+	defines.events.on_player_created,
+	show_gui
 )
 
 local to_ignore = {}
