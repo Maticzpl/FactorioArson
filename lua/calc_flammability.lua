@@ -97,6 +97,10 @@ local function items_from_recipes(ignore)
     local recipes_by_fluids = {}
 
     populate_recipe_table(recipes_by_items, recipes_by_fluids)
+	--- @type {[string]: LuaRecipe[]}
+	global.recipies_item_cache = recipes_by_items
+	--- @type {[string]: LuaRecipe[]}
+	global.recipies_fluid_cache = recipes_by_fluids
 
     local proximity = calculate_proximity(recipes_by_items, recipes_by_fluids)
 	global.proximity_cache = proximity
