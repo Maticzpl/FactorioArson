@@ -7,10 +7,10 @@ local show_gui = require("lua/gui")
 
 
 local function generate_barrels()    
-    for _, fluid in pairs(global.fluids) do
+    for _, fluid in pairs(storage.fluids) do
         local name = fluid.name.."-barrel"
-        if global.flammable[name] == nil then            
-            global.flammable[name] = {
+        if storage.flammable[name] == nil then            
+            storage.flammable[name] = {
                 fireball=fluid.fireball,
                 cooldown=10,
                 strength=fluid.strength,
@@ -23,7 +23,7 @@ local function generate_barrels()
 end
 
 local function load_flammables()    
-    global.flammable = {
+    storage.flammable = {
         ["wood"] = {fireball=false, cooldown=3, strength=3, name="wood"},
         ["coal"] = {fireball=false, cooldown=2, strength=7, name="coal"},
         ["solid-fuel"] = {fireball=false, cooldown=1, strength=10, name="solid-fuel"},
@@ -56,7 +56,7 @@ local function load_flammables()
         ["explosives"] = {fireball=false, cooldown=5, strength=20, name="explosives", explosion="maticzplars-dynamite-explosion", explosion_radius=3},
     }
     
-    global.fluids =   
+    storage.fluids =   
     {
         ["crude-oil"] = {fireball=true, strength=6, name="crude-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
         ["light-oil"] = {fireball=true, strength=10, name="light-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},
@@ -149,7 +149,7 @@ remote.add_interface("maticzplars-flammables", {
     ---@param explosion_radius double
     ---@param explosion_prototype string?
     add_item = function (name, fire_strength, fire_spread_cooldown, make_fireball, explosion_radius, explosion_prototype)
-        global.flammable[name] = {                
+        storage.flammable[name] = {                
             fireball=make_fireball,
             cooldown=fire_spread_cooldown,
             strength=fire_strength,
@@ -165,7 +165,7 @@ remote.add_interface("maticzplars-flammables", {
     ---@param explosion_radius double
     ---@param explosion_prototype string?
     add_fluid = function (name, fire_strength, make_fireball, explosion_radius, explosion_prototype)
-        global.fluids[name] = {                
+        storage.fluids[name] = {                
             fireball=make_fireball,
             strength=fire_strength,
             name=name,
@@ -181,14 +181,14 @@ remote.add_interface("maticzplars-flammables", {
             table.insert(to_ignore, ignore)            
         end
         
-        for key, value in pairs(global.flammable) do
+        for key, value in pairs(storage.flammable) do
             if value.calculated then
-                global.flammable[key] = nil
+                storage.flammable[key] = nil
             end
         end
-        for key, value in pairs(global.fluids) do
+        for key, value in pairs(storage.fluids) do
             if value.calculated then
-                global.fluids[key] = nil
+                storage.fluids[key] = nil
             end
         end
         items_from_recipes(to_ignore)

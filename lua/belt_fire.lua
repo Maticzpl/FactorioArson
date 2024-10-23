@@ -7,24 +7,24 @@ local function on_belt_fire(event)
         local line = ent.get_transport_line(i)
         local contents = line.get_contents()
 
-        for _, fuel in pairs(global.flammable) do
+        for _, fuel in pairs(storage.flammable) do
             local fname = fuel.name;
             if contents[fname] ~= nil then
                 local amount = contents[fname]
 
-                if global.cooldown == nil then
-                    global.cooldown = {}
+                if storage.cooldown == nil then
+                    storage.cooldown = {}
                 end
                 
-                if global.cooldown[ent.unit_number] == nil or type(global.cooldown[ent.unit_number]) == "number" then
-                    global.cooldown[ent.unit_number] = {}                        
+                if storage.cooldown[ent.unit_number] == nil or type(storage.cooldown[ent.unit_number]) == "number" then
+                    storage.cooldown[ent.unit_number] = {}                        
                 end                  
                 
-                if global.cooldown[ent.unit_number][i] == nil then
-                    global.cooldown[ent.unit_number][i] = ( fuel.cooldown * (math.max(fuel.strength,3) / 10) * 3 ) / settings.global["maticzplars-belt-spread"].value
+                if storage.cooldown[ent.unit_number][i] == nil then
+                    storage.cooldown[ent.unit_number][i] = ( fuel.cooldown * (math.max(fuel.strength,3) / 10) * 3 ) / settings.global["maticzplars-belt-spread"].value
                 end   
 
-                if global.cooldown[ent.unit_number][i] <= 0 then
+                if storage.cooldown[ent.unit_number][i] <= 0 then
                     line.remove_item({name=fname, count=amount})
                     
                     ent.surface.create_entity({
@@ -68,7 +68,7 @@ local function on_belt_fire(event)
                     end
                 end
 
-                global.cooldown[ent.unit_number][i] = global.cooldown[ent.unit_number][i] - 1;     
+                storage.cooldown[ent.unit_number][i] = storage.cooldown[ent.unit_number][i] - 1;     
             end
         end
     end

@@ -1,5 +1,5 @@
 local function populate_recipe_table(items, fluids)    
-    for name, recipe in pairs(game.recipe_prototypes) do
+    for name, recipe in pairs(prototypes.recipe) do
         for _, product in ipairs(recipe.products) do
             if product.type == "item" then                    
                 if items[product.name] == nil then
@@ -26,13 +26,13 @@ local function calculate_proximity(items, fluids)
         ["wood"] = 0,
     }
 
-    for name, item in pairs(game.item_prototypes) do
+    for name, item in pairs(prototypes.item) do
         if items[name] == nil then
             proximity[name] = 0
         end
     end
 
-    for name, fluid in pairs(game.fluid_prototypes) do
+    for name, fluid in pairs(prototypes.fluid) do
         if fluids[name] == nil then
             proximity[name] = 0
         end        
@@ -69,7 +69,7 @@ local function calculate_proximity(items, fluids)
         return lowest
     end
 
-    for name, item in pairs(game.item_prototypes) do
+    for name, item in pairs(prototypes.item) do
         itterated = {}
         local res = calculate_proximity_recursively(name)
         if proximity[name] == nil and res then
@@ -78,7 +78,7 @@ local function calculate_proximity(items, fluids)
             --log("Cant get proximity of "..name)
         end
     end
-    for name, fluid in pairs(game.fluid_prototypes) do
+    for name, fluid in pairs(prototypes.fluid) do
         itterated = {}
         local res = calculate_proximity_recursively(name)
         if proximity[name] == nil and res then
@@ -98,12 +98,12 @@ local function items_from_recipes(ignore)
 
     populate_recipe_table(recipes_by_items, recipes_by_fluids)
 	--- @type {[string]: LuaRecipe[]}
-	global.recipies_item_cache = recipes_by_items
+	storage.recipies_item_cache = recipes_by_items
 	--- @type {[string]: LuaRecipe[]}
-	global.recipies_fluid_cache = recipes_by_fluids
+	storage.recipies_fluid_cache = recipes_by_fluids
 
     local proximity = calculate_proximity(recipes_by_items, recipes_by_fluids)
-	global.proximity_cache = proximity
+	storage.proximity_cache = proximity
 
     local dont_calculate = {
         "electronic%-circuit",
@@ -146,13 +146,13 @@ local function items_from_recipes(ignore)
             end
         end
 
-        if global.flammable[name] ~= nil then
+        if storage.flammable[name] ~= nil then
             if debug then log("base "..name) end
-            return {items=global.flammable[name].strength, fluids=0, total_count=1, recursive=0}
+            return {items=storage.flammable[name].strength, fluids=0, total_count=1, recursive=0}
         end
-        if global.fluids[name] ~= nil then
+        if storage.fluids[name] ~= nil then
             if debug then log("base "..name) end
-            return {items=0, fluids=global.fluids[name].strength, total_count=1, recursive=0}            
+            return {items=0, fluids=storage.fluids[name].strength, total_count=1, recursive=0}            
         end
 
         ---@type LuaRecipePrototype[]
@@ -205,7 +205,7 @@ local function items_from_recipes(ignore)
     local to_add_fluids = {}
 
     log("CALCULATED FLAMMABILITY:")
-    for name, item in pairs(game.item_prototypes) do
+    for name, item in pairs(prototypes.item) do
         itterated = {}
         local res = calculate_flammability(name)
 
@@ -232,7 +232,7 @@ local function items_from_recipes(ignore)
             end
         end
     end
-    for name, fluid in pairs(game.fluid_prototypes) do
+    for name, fluid in pairs(prototypes.fluid) do
         itterated = {}
         local res = calculate_flammability(name)
         if res then   
@@ -254,7 +254,7 @@ local function items_from_recipes(ignore)
     end
 
     for name, item in pairs(to_add_items) do
-        global.flammable[name] = {
+        storage.flammable[name] = {
             fireball=item.fireball,
             cooldown=item.cooldown,
             strength=item.strength,
@@ -265,7 +265,7 @@ local function items_from_recipes(ignore)
         }
     end
     for name, fluid in pairs(to_add_fluids) do
-        global.fluids[name] = {
+        storage.fluids[name] = {
             fireball=fluid.fireball,
             strength=fluid.strength,
             name=fluid.name,

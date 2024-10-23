@@ -1,19 +1,20 @@
+-- TODO: Fix bug https://mods.factorio.com/mod/Arson/discussion/66f9196ad24a3f213f62ff9f
 local fires = {}
 
 ---@param item LuaEntity
 local function on_item_fire(item)
     local fname = item.stack.name
-    local fuel = global.flammable[fname]
+    local fuel = storage.flammable[fname]
 
-    if global.cooldown == nil then
-        global.cooldown = {}
+    if storage.cooldown == nil then
+        storage.cooldown = {}
     end
     local id = item.position.x.." "..item.position.y
-    if global.cooldown[id] == nil or type(global.cooldown[id]) == "table" then
-        global.cooldown[id] = ( fuel.cooldown * (fuel.strength / 10)  ) / settings.global["maticzplars-belt-spread"].value                       
+    if storage.cooldown[id] == nil or type(storage.cooldown[id]) == "table" then
+        storage.cooldown[id] = ( fuel.cooldown * (fuel.strength / 10)  ) / settings.global["maticzplars-belt-spread"].value                       
     end          
 
-    if global.cooldown[id] <= 0 then    
+    if storage.cooldown[id] <= 0 then    
         item.surface.create_entity({
             name="fire-flame", 
             position=item.position, 
@@ -39,11 +40,11 @@ local function on_item_fire(item)
             end
         end
         item.destroy()
-        global.cooldown[id] = nil
+        storage.cooldown[id] = nil
     end
 
-    if global.cooldown[id] ~= nil then
-        global.cooldown[id] = global.cooldown[id] - 1;           
+    if storage.cooldown[id] ~= nil then
+        storage.cooldown[id] = storage.cooldown[id] - 1;           
     end
 end
 
@@ -87,7 +88,7 @@ local function init()
                             })
 
                             for _, item in pairs(items) do
-                                if global.flammable[item.stack.name] ~= nil then
+                                if storage.flammable[item.stack.name] ~= nil then
                                     on_item_fire(item)
                                 end                    
                             end

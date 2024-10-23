@@ -5,23 +5,23 @@ local function on_tank_fire(event)
         return
     end
 
-    for _, fuel in pairs(global.fluids) do
+    for _, fuel in pairs(storage.fluids) do
         local fname = fuel.name;
         local contents = ent.get_fluid_contents()
 
         if contents ~= nil and contents[fname] ~= nil then
             local amount = contents[fname]
 
-            if global.cooldown == nil then
-                global.cooldown = {}
+            if storage.cooldown == nil then
+                storage.cooldown = {}
             end
             
-            if global.cooldown[ent.unit_number] == nil or type(global.cooldown[ent.unit_number]) == "table" then
-                global.cooldown[ent.unit_number] = 8                  
+            if storage.cooldown[ent.unit_number] == nil or type(storage.cooldown[ent.unit_number]) == "table" then
+                storage.cooldown[ent.unit_number] = 8                  
             end       
 
-            if global.cooldown[ent.unit_number] <= 0 then    
-                global.cooldown[ent.unit_number] = 8   
+            if storage.cooldown[ent.unit_number] <= 0 then    
+                storage.cooldown[ent.unit_number] = 8   
                 
                 ent.remove_fluid({name=fname, amount=math.min(amount, 307)})     
 
@@ -31,7 +31,7 @@ local function on_tank_fire(event)
                     initial_ground_flame_count=fuel.strength * math.min(amount/12500, 2)
                 })
             else
-                global.cooldown[ent.unit_number] = global.cooldown[ent.unit_number] - 1
+                storage.cooldown[ent.unit_number] = storage.cooldown[ent.unit_number] - 1
             end
 
             if fuel.explosion ~= nil and ent.health < 20 then

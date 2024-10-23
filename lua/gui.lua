@@ -78,9 +78,9 @@ local function show_gui(event)
 	
 	local flammables_sorted = {}
 
-	for _, item in pairs(game.item_prototypes) do
-		if global.flammable[item.name] then
-			local prox = global.proximity_cache[item.name] + 1 -- cause ipairs later
+	for _, item in pairs(prototypes.item) do
+		if storage.flammable[item.name] then
+			local prox = storage.proximity_cache[item.name] + 1 -- cause ipairs later
 
 			if not flammables_sorted[prox] then
 				flammables_sorted[prox] = {}
@@ -90,9 +90,9 @@ local function show_gui(event)
 		end
 	end
 
-	for _, fluid in pairs(game.fluid_prototypes) do
-		if global.fluids[fluid.name] then
-			local prox = global.proximity_cache[fluid.name] + 1
+	for _, fluid in pairs(prototypes.fluid) do
+		if storage.fluids[fluid.name] then
+			local prox = storage.proximity_cache[fluid.name] + 1
 
 			if not flammables_sorted[prox] then
 				flammables_sorted[prox] = {}
@@ -125,7 +125,7 @@ local function show_gui(event)
 			i = i + 1
 
 			local sprite = kind .. "/" .. item_name
-			if not game.is_valid_sprite_path(sprite) then
+			if not helpers.is_valid_sprite_path(sprite) then
 				error(sprite .. " invalid sprite path")
 			end
 			
@@ -168,11 +168,11 @@ script.on_event(defines.events.on_gui_hover, -- TODO: Finish hover window
 
 
 			--- @type any
-			local prototype = game.item_prototypes[flammable]
-			local flammability = global.flammable[flammable]
+			local prototype = prototypes.item[flammable]
+			local flammability = storage.flammable[flammable]
 			if not prototype then
-				prototype = game.fluid_prototypes[flammable]
-				flammability = global.fluids[flammable]
+				prototype = prototypes.fluid[flammable]
+				flammability = storage.fluids[flammable]
 			end
 
 
@@ -216,12 +216,12 @@ script.on_event(defines.events.on_gui_hover, -- TODO: Finish hover window
 			--- @type {[string]: Ingredient}
 			local ingredients = {}
 
-			local recipie_tables = {global.recipies_item_cache, global.recipies_fluid_cache}
+			local recipie_tables = {storage.recipies_item_cache, storage.recipies_fluid_cache}
 			local recipie_table = util.mergeTables(recipie_tables)
 			for _, recipie in ipairs(recipie_table[flammable]) do
 				for _, ingredient in pairs(recipie.ingredients or {}) do
-					if (global.flammable[ingredient.name] or global.fluids[ingredient.name]) and 
-						global.proximity_cache[ingredient.name] < global.proximity_cache[flammable] then
+					if (storage.flammable[ingredient.name] or storage.fluids[ingredient.name]) and 
+						storage.proximity_cache[ingredient.name] < storage.proximity_cache[flammable] then
 						ingredients[ingredient.name] = ingredient
 					end
 				end
@@ -240,7 +240,7 @@ script.on_event(defines.events.on_gui_hover, -- TODO: Finish hover window
 
 				local sprite = "item/" .. name
 
-				if not game.item_prototypes[name] then
+				if not prototypes.item[name] then
 					sprite = "fluid/" .. name					
 				end
 

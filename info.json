@@ -1,10 +1,10 @@
 
 {
   "name": "Arson",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "title": "Arson",
   "author": "Maticzpl",
-  "factorio_version": "1.1",
+  "factorio_version": "2.0",
   "description": "Live in constant fear of your factory burning down. A forest isn't the only thing you can set on fire now. This mod makes some flammable stuff like coal on belts burn! Some items will even explode!",
   "dependencies": ["base"]
 }

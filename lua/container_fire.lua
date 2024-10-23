@@ -6,7 +6,7 @@ local function on_container_fire(event)
     end
 
 
-    for _, fuel in pairs(global.flammable) do
+    for _, fuel in pairs(storage.flammable) do
         local fname = fuel.name;
         local contents = ent.get_inventory(defines.inventory.chest)
         if contents == nil then
@@ -16,16 +16,16 @@ local function on_container_fire(event)
         if contents ~= nil and contents.get_item_count(fname) > 0 then
             local amount = contents.get_item_count(fname)
 
-            if global.cooldown == nil then
-                global.cooldown = {}
+            if storage.cooldown == nil then
+                storage.cooldown = {}
             end
             
-            if global.cooldown[ent.unit_number] == nil or type(global.cooldown[ent.unit_number]) == "table" then
-                global.cooldown[ent.unit_number] = 4                   
+            if storage.cooldown[ent.unit_number] == nil or type(storage.cooldown[ent.unit_number]) == "table" then
+                storage.cooldown[ent.unit_number] = 4                   
             end       
 
-            if global.cooldown[ent.unit_number] <= 0 then    
-                global.cooldown[ent.unit_number] = 4   
+            if storage.cooldown[ent.unit_number] <= 0 then    
+                storage.cooldown[ent.unit_number] = 4   
                 
                 contents.remove({name=fname, count=math.min(amount, 5)})
 
@@ -35,7 +35,7 @@ local function on_container_fire(event)
                     initial_ground_flame_count=fuel.strength * math.min(amount/5, fuel.strength / 4)
                 })
             else
-                global.cooldown[ent.unit_number] = global.cooldown[ent.unit_number] - 1
+                storage.cooldown[ent.unit_number] = storage.cooldown[ent.unit_number] - 1
             end
 
             if fuel.explosion ~= nil and ent.health < 30 then
