@@ -6,12 +6,12 @@ local WIDTH = MAIN_SECTION_WIDTH + DESC_SECTION_WIDTH
 local HEIGHT = 600
 
 local util = require("./utility")
+local flammability_manager = require("flammability_manager")
+local item_graph           = require("item_graph")
+local mod_gui = require("mod-gui")
 
---- @type LuaGuiElement
-local host_screen
 --- @type LuaGuiElement
 local description_frame
-
 
 --- @param content LuaGuiElement
 local function fill_flammables_icons(content)
@@ -20,9 +20,14 @@ local function fill_flammables_icons(content)
 	---@type { [string]: "item"|"fluid" }[]
     local flammables_sorted = {}
 
+    -- TODO: Dont use raw storage. stuff for this
     for _, item in pairs(prototypes.item) do
         if storage.flammable[item.name] or storage.edits[item.name] then
-            local prox = storage.proximity_cache[item.name] + 1 -- cause ipairs later
+            local prox = item_graph.get_depth_from_cache(item.name)
+            if not prox then
+                goto continue
+            end
+            prox = prox + 1 -- cause ipairs later
 
             if not flammables_sorted[prox] then
                 flammables_sorted[prox] = {}
@@ -30,11 +35,16 @@ local function fill_flammables_icons(content)
 
             flammables_sorted[prox][item.name] = "item"
         end
+        ::continue::
     end
 
     for _, fluid in pairs(prototypes.fluid) do
         if storage.fluids[fluid.name] or storage.edits[fluid.name]  then
-            local prox = storage.proximity_cache[fluid.name] + 1
+            local prox = item_graph.get_depth_from_cache(fluid.name)
+            if not prox then
+                goto continue
+            end
+            prox = prox + 1 
 
             if not flammables_sorted[prox] then
                 flammables_sorted[prox] = {}
@@ -42,27 +52,28 @@ local function fill_flammables_icons(content)
 
             flammables_sorted[prox][fluid.name] = "fluid"
         end
+        ::continue::
     end
 
     for prox, items in ipairs(flammables_sorted) do
         if prox ~= 1 then
-            content.add{
+            content.add({
                 type = "line",
                 style = "tooltip_horizontal_line",
                 -- caption = "Depth: " .. prox,
                 name = "maticzplars-depth-divider" .. prox
-            }
+            })
         end
 
         local i = 0
         local row
         for item_name, kind in pairs(items) do
             if i % MAIN_GRID_COLUMNS == 0 then
-                row = content.add{
+                row = content.add({
                     type = "flow",
                     name = "maticzplars-icon-row-" .. prox .. "-" .. (i / MAIN_GRID_COLUMNS),
                     direction = "horizontal"
-                }
+                })
             end
             i = i + 1
 
@@ -72,24 +83,25 @@ local function fill_flammables_icons(content)
             end
 
             --- @type LuaGuiElement
-            local bg = row.add{
+            local bg = row.add({
                 type = "button",
                 name = "maticzplars-flammable-button-" .. item_name,
                 style = "slot_button",
                 sprite = sprite
-            }
+            })
             bg.style.margin = 1
 
-            if storage.edits and storage.edits[item_name] and storage.edits[item_name].nonflammable then
+            local edit = flammability_manager.get_edit(item_name)
+            if edit.strength and edit.strength <= 0 then             
                 bg.style = "red_slot_button"
             end
 
             --- @type LuaGuiElement
-            local icon = bg.add{ 
+            local icon = bg.add({ 
                 type = "sprite",
                 name = "maticzplars-sprite-" .. item_name,
                 sprite = sprite
-            }
+            })
             icon.raise_hover_events = false
             icon.ignored_by_interaction = true
             icon.resize_to_sprite = false
@@ -99,72 +111,70 @@ local function fill_flammables_icons(content)
     end
 end
 
-
---- @param event EventData.on_player_created
+-- Calling this twice crashes TODO
+--- @param event EventData.on_gui_click
 local function show_gui(event)
     local screen = game.get_player(event.player_index).gui.screen
-    host_screen = screen
 
-    local frame = screen.add{	
+    local frame = screen.add({	
         type = "frame",
         name = "maticzplars-settings", 
         direction = "vertical"
-    }
+    })
     frame.style.size = {WIDTH, HEIGHT}
     frame.auto_center = true
 
-    local title_bar = frame.add{
+    local title_bar = frame.add({
         type = "flow",
         name = "maticzplars-title-bar",
         direction = "horizontal",
-    }
+    })
     title_bar.drag_target = frame
 
-    local title = title_bar.add{
+    local title = title_bar.add({
         type = "label",
         name = "maticzplars-title-label",
         style = "frame_title",
         caption = "Arson Edit Flammables"
-    }
+    })
     title.drag_target = frame
 
-    local draggable = title_bar.add{
+    local draggable = title_bar.add({
         type = "empty-widget",
         name = "maticzplars-drag",
         style = "draggable_space_header",
-    }
+    })
     draggable.drag_target = frame
     draggable.style.horizontally_stretchable = true
     draggable.style.height = 24
 
-    title_bar.add{
+    title_bar.add({
         type = "sprite-button",
         name = "maticzplars-button-close",
         sprite = "utility/close",
         style = "frame_action_button"
-    }
+    })
 
-
-    local hcont = frame.add{
+    local hcont = frame.add({
         type = "flow",
         name = "maticzplars-horizontal-container",
         direction = "horizontal"
-    }
+    })
 
-    local content = hcont.add{
+    local content = hcont.add({
         type = "scroll-pane",
         name = "maticzplars-content-scroll",
         direction = "vertical"
-    }
+    })
     content.style.horizontally_stretchable = true
 
     fill_flammables_icons(content)
 
-    description_frame = hcont.add{
+    description_frame = hcont.add({
         type = "frame",
         name = "maticzplars-description-frame",
         direction = "vertical"
-    }
+    })
     description_frame.style.width = DESC_SECTION_WIDTH
 
 end
@@ -172,13 +182,14 @@ end
 local selected_flammable
 local last_hover_tick = 0
 
-
+--- @param event EventData.on_gui_click
 local function show_description(event)
-    if string.find(event.element.name, "^arson_flammable_button_") or 
-        (string.find(event.element.name, "^arson_desc_sprite_") and event.tick - last_hover_tick > 10) then
+    if string.find(event.element.name, "^maticzplars%-flammable%-button%-") or 
+        (string.find(event.element.name, "^maticzplars%-desc-sprite%-") and event.tick - last_hover_tick > 10) then
         last_hover_tick = event.tick
 
-        local itter = string.gmatch(event.element.name, '([^_]+)')
+        -- wow thats stupid code lmao
+        local itter = string.gmatch(event.element.name, '([^%-]+)')
         itter()
         itter()
         itter()
@@ -188,21 +199,23 @@ local function show_description(event)
 
         --- @type any
         local prototype = prototypes.item[flammable]
-        local flammability = storage.flammable[flammable]
+        local flammability = flammability_manager.get_flammability(flammable)
         if not prototype then
             prototype = prototypes.fluid[flammable]
-            flammability = storage.fluids[flammable]
         end
-
 
         description_frame.clear()
 
-        local title = description_frame.add{
+        if not flammability then
+            return
+        end
+
+        local title = description_frame.add({
             type = "label",
             caption = prototype.localised_name,
             name = "maticzplars-desc-title",
             style = "orange_label",
-        }
+        })
         title.style.single_line = false
         title.style.maximal_width = DESC_SECTION_WIDTH - 20
 
@@ -212,48 +225,40 @@ local function show_description(event)
         end
         flammability.explosion_radius = flammability.explosion_radius or 0
 
-        local desc_label = description_frame.add{
+        local desc_label = description_frame.add({
             type = "label",
             name = "maticzplars-desc",
             caption = "Flammability: " ..  string.format("%.00f", flammability.strength) ..
                 "\nExplosion Size: " .. string.format("%.00f", flammability.explosion_radius) ..
                 "\nFireball: " .. tostring(flammability.fireball) ..
             burn_rate
-        }
+        })
         desc_label.style.single_line = false
 
 
-        description_frame.add{
+        description_frame.add({
             type = "label",
             caption = "Flammable Ingredients",
             name = "maticzplars-desc-ingredients",
             style = "orange_label",
-        }
-
+        })
 
 
         --- @type {[string]: Ingredient}
         local ingredients = {}
 
-        local recipie_tables = {storage.recipies_item_cache, storage.recipies_fluid_cache}
-        local recipie_table = util.mergeTables(recipie_tables)
-        for _, recipie in ipairs(recipie_table[flammable]) do
-            for _, ingredient in pairs(recipie.ingredients or {}) do
-                if (storage.flammable[ingredient.name] or storage.fluids[ingredient.name]) and 
-                    storage.proximity_cache[ingredient.name] < storage.proximity_cache[flammable] then
-                    ingredients[ingredient.name] = ingredient
-                end
-            end
+        for _, item in ipairs(item_graph.get_parent_items(flammable, true)) do
+            ingredients[item.name] = item
         end
 
         local i = 0
         local row
         for name, _ in pairs(ingredients) do
             if i % 4 == 0 then
-                row = description_frame.add{
+                row = description_frame.add({
                     type = "flow",
                     direction = "horizontal"
-                }
+                })
             end
             i = i + 1
 
@@ -263,48 +268,76 @@ local function show_description(event)
                 sprite = "fluid/" .. name					
             end
 
-            local icon = row.add{
+            local icon = row.add({
                 type = "sprite",
                 name = "maticzplars-desc-sprite-" .. name,
                 sprite = sprite
-            }
+            })
             icon.resize_to_sprite = false
             icon.raise_hover_events = true
             icon.style.width = 32
             icon.style.height = 32
         end
 
-        description_frame.add{
+        description_frame.add({
             type = "empty-widget"
-        }.style.vertically_stretchable = true
+        }).style.vertically_stretchable = true
 
 
-        description_frame.add{
+        description_frame.add({
             type = "button",
             name = "maticzplars-toggle-flammable-button",
             caption = "Toggle flammable"
-        }--.style.horizontally_stretchable = true
+        })--.style.horizontally_stretchable = true
 
     end
 end
 
 
+script.on_event( -- TODO: Dont show on startup
+    defines.events.on_player_created,
+    --- @param player_created_event EventData.on_player_created
+    function (player_created_event)
+        -- Check how this is supposed to work in multiplayer
+        -- if storage.host_joined then
+        --     return
+        -- end
+        -- storage.host_joined = true
+        
+        mod_gui.get_button_flow(game.players[player_created_event.player_index]).add{
+            type="sprite-button", 
+            name="maticzplars-mod-button", 
+            sprite="utility/refresh", 
+            style=mod_gui.button_style
+        }
+
+        
+    end
+)
 script.on_event(defines.events.on_gui_click, 
     --- @param event EventData.on_gui_click
-    function(event)
+    function (event)
+        if event.element.name == "maticzplars-mod-button" then
+            show_gui(event)
+            return
+        end
+
         if event.element.name == "maticzplars-button-close" then
             event.element.parent.parent.destroy()
             return
         end
-        if event.element.name == "maticzplars-toggle-flammable-button" then
-            print(selected_flammable)
 
-            local current = storage.edits[selected_flammable] or { nonflammable = false }
-            current.nonflammable = not current.nonflammable
+        if event.element.name == "maticzplars-toggle-flammable-button" then        
+            -- TODO: obv more settings for edits
+            local current = flammability_manager.get_edit(selected_flammable)
+            if current.strength and current.strength == 0 then
+                flammability_manager.clear_edit(selected_flammable)
+            else
+                flammability_manager.make_edit(selected_flammable, {strength = 0})
+            end
 
-            storage.edits[selected_flammable] = current
-
-            fill_flammables_icons(host_screen["maticzplars-settings"]["maticzplars-horizontal-container"]["maticzplars-content-scroll"])
+            local screen = game.get_player(event.player_index).gui.screen
+            fill_flammables_icons(screen["maticzplars-settings"]["maticzplars-horizontal-container"]["maticzplars-content-scroll"])
             return
         end
 
@@ -312,4 +345,4 @@ script.on_event(defines.events.on_gui_click,
     end
 )
 
-return show_gui
+return {show_gui = show_gui}

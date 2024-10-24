@@ -4,31 +4,12 @@ local on_belt_fire = require("lua/belt_fire")
 local on_container_fire = require("lua/container_fire")
 local on_tank_fire = require("lua/fluid_tank_fire")
 local init_ground_item_fire_events = require("lua/ground_item_fire")
-local show_gui = require("lua/gui")
-local mod_gui = require("mod-gui")
-
-local function generate_barrels()    
-    for _, fluid in pairs(storage.fluids) do
-        local name = fluid.name.."-barrel"
-        if storage.flammable[name] == nil then            
-            storage.flammable[name] = {
-                fireball=fluid.fireball,
-                cooldown=10,
-                strength=fluid.strength,
-                name=name,
-                explosion_radius=fluid.explosion_radius,
-                explosion=fluid.explosion
-            }
-        end
-    end
-end
+local gui = require("lua/gui")
 
 local function load_flammables()    
-    storage.edits = storage.edits or {}
-
-    flammability_manager.add_flammable_item("wood",       false, 3, 2, false)
-    flammability_manager.add_flammable_item("coal",       false, 2, 7, false)
-    flammability_manager.add_flammable_item("solid-fuel", false, 1, 10, false)
+    flammability_manager.add_flammable_item("wood",       false, 3, 2,  false, nil, nil, true)
+    flammability_manager.add_flammable_item("coal",       false, 2, 7,  false, nil, nil, true)
+    flammability_manager.add_flammable_item("solid-fuel", false, 1, 10, false, nil, nil)
 
     flammability_manager.add_flammable_item("rocket-fuel",       true, 8,  15, false, "maticzplars-rocket-fuel-explosion", 1)
     flammability_manager.add_flammable_item("flamethrower-ammo", true, 10, 16, false, "maticzplars-rocket-fuel-explosion", 0.5)
@@ -41,11 +22,11 @@ local function load_flammables()
     flammability_manager.add_flammable_item("uranium-rounds-magazine",  false, 5, 4, false, "maticzplars-damage-explosion", 0.4)
     
     flammability_manager.add_flammable_item("rocket",                         false, 10, 10, false, "maticzplars-damage-explosion", 0.4)
-    flammability_manager.add_flammable_item("explosive-rocket",               false, 10, 7, false,  "maticzplars-damage-explosion", 0.7)
-    flammability_manager.add_flammable_item("cannon-shell",                   false, 10, 7, false,  "maticzplars-damage-explosion", 0.6)
-    flammability_manager.add_flammable_item("explosive-cannon-shell",         false, 10, 7, false,  "maticzplars-damage-explosion", 1)
-    flammability_manager.add_flammable_item("uranium-cannon-shell",           false, 10, 7, false,  "maticzplars-damage-explosion", 1)
-    flammability_manager.add_flammable_item("explosive-uranium-cannon-shell", false, 10, 7, false,  "maticzplars-damage-explosion", 1.4)
+    flammability_manager.add_flammable_item("explosive-rocket",               false, 10, 7,  false,  "maticzplars-damage-explosion", 0.7)
+    flammability_manager.add_flammable_item("cannon-shell",                   false, 10, 7,  false,  "maticzplars-damage-explosion", 0.6)
+    flammability_manager.add_flammable_item("explosive-cannon-shell",         false, 10, 7,  false,  "maticzplars-damage-explosion", 1)
+    flammability_manager.add_flammable_item("uranium-cannon-shell",           false, 10, 7,  false,  "maticzplars-damage-explosion", 1)
+    flammability_manager.add_flammable_item("explosive-uranium-cannon-shell", false, 10, 7,  false,  "maticzplars-damage-explosion", 1.4)
 
     flammability_manager.add_flammable_item("shotgun-shell",          false, 5, 2, false, "maticzplars-damage-explosion", 0.2)
     flammability_manager.add_flammable_item("piercing-shotgun-shell", false, 5, 3, false, "maticzplars-damage-explosion", 0.3)
@@ -53,15 +34,30 @@ local function load_flammables()
     flammability_manager.add_flammable_item("explosives", false, 5, 20, false, "maticzplars-dynamite-explosion", 3)
 
 
-    flammability_manager.add_flammable_fluid("crude-oil",     true, 6, false,  "maticzplars-rocket-fuel-explosion", 0.5)
+    flammability_manager.add_flammable_fluid("crude-oil",     true, 6, false,  "maticzplars-rocket-fuel-explosion", 0.5, true)
     flammability_manager.add_flammable_fluid("light-oil",     true, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
     flammability_manager.add_flammable_fluid("heavy-oil",     true, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
     flammability_manager.add_flammable_fluid("petroleum-gas", true, 10, false, "maticzplars-rocket-fuel-explosion", 0.7)
 
+    ---@type FlammabilityEdit
+    local dont_burn = { strength = 0 }
+    -- TODO: Remove unnecessary edits here
+    flammability_manager.make_edit("electronic-circuit",    dont_burn)
+    flammability_manager.make_edit("advanced-circuit",      dont_burn)
+    flammability_manager.make_edit("processing-unit",       dont_burn)
+    flammability_manager.make_edit("plastic-bar",           dont_burn)
+    flammability_manager.make_edit("electric-engine-unit",  dont_burn)
+    flammability_manager.make_edit("battery",               dont_burn)
+    flammability_manager.make_edit("steel",                 dont_burn)
+    flammability_manager.make_edit("iron",                  dont_burn)
+    flammability_manager.make_edit("water",                 dont_burn)
+
     calculate_flammabilities()
 end
 
-script.on_init(load_flammables)
+script.on_init(function ()
+    load_flammables()
+end)
 script.on_configuration_changed(load_flammables)
 
 script.on_event(
@@ -128,35 +124,6 @@ script.on_event(
     }
 )
 
-storage.host_joined = false
-script.on_event( -- TODO: Dont show on startup
-	defines.events.on_player_created,
-    --- @param event EventData.on_player_created
-    function (event)
-        if storage.host_joined then
-            return
-        end
-        storage.host_joined = true
-        
-        mod_gui.get_button_flow(game.players[event.player_index]).add{
-            type="sprite-button", 
-            name="maticzplars-mod-button", 
-            sprite="utility/refresh", 
-            style=mod_gui.button_style
-        }
-
-        script.on_event(defines.events.on_gui_click, 
-            --- @param click_event EventData.on_gui_click
-            function (click_event)
-                if click_event.element.name == "maticzplars-mod-button" then
-                   show_gui(event) -- closures my beloved 
-                end
-            end
-        )
-    end
-)
-
-local to_ignore = {}
 remote.add_interface("maticzplars-flammables", {
     ---@param name string
     ---@param fire_strength int
@@ -164,15 +131,18 @@ remote.add_interface("maticzplars-flammables", {
     ---@param make_fireball boolean
     ---@param explosion_radius double
     ---@param explosion_prototype string?
-    add_item = function (name, fire_strength, fire_spread_cooldown, make_fireball, explosion_radius, explosion_prototype)
-        storage.flammable[name] = {                
-            fireball=make_fireball,
-            cooldown=fire_spread_cooldown,
-            strength=fire_strength,
-            name=name,
-            explosion_radius=explosion_radius,
-            explosion=explosion_prototype or "maticzplars-rocket-fuel-explosion"
-        }
+    ---@param raw_resource boolean? Should be true if the item cannot be crafted from simpler items. This is used to prevent flammability calculations from using recipies for recyclers, crushers or anything else that might go from a more complex item to a less complex one.  
+    add_item = function (name, fire_strength, fire_spread_cooldown, make_fireball, explosion_radius, explosion_prototype, raw_resource)
+        flammability_manager.add_flammable_item(
+            name, 
+            make_fireball, 
+            fire_spread_cooldown,
+            fire_strength, 
+            false, 
+            explosion_prototype or "maticzplars-rocket-fuel-explosion", 
+            explosion_radius,
+            raw_resource or false
+        )        
     end,
 
     ---@param name string
@@ -180,34 +150,23 @@ remote.add_interface("maticzplars-flammables", {
     ---@param make_fireball boolean
     ---@param explosion_radius double
     ---@param explosion_prototype string?
-    add_fluid = function (name, fire_strength, make_fireball, explosion_radius, explosion_prototype)
-        storage.fluids[name] = {                
-            fireball=make_fireball,
-            strength=fire_strength,
-            name=name,
-            explosion_radius=explosion_radius,
-            explosion=explosion_prototype or "maticzplars-rocket-fuel-explosion"
-        }
-        generate_barrels()
+    ---@param raw_resource boolean? 
+    add_fluid = function (name, fire_strength, make_fireball, explosion_radius, explosion_prototype, raw_resource)
+        flammability_manager.add_flammable_fluid(
+            name, 
+            make_fireball, 
+            fire_strength, 
+            false, 
+            explosion_prototype or "maticzplars-rocket-fuel-explosion", 
+            explosion_radius,
+            raw_resource or false
+        )        
     end,
         
+    -- TODO: check this ignore param if needed and stuff
     ---@param ignore string?
     recalculate_flammables = function (ignore)
-        if ignore then
-            table.insert(to_ignore, ignore)            
-        end
-        
-        for key, value in pairs(storage.flammable) do
-            if value.calculated then
-                storage.flammable[key] = nil
-            end
-        end
-        for key, value in pairs(storage.fluids) do
-            if value.calculated then
-                storage.fluids[key] = nil
-            end
-        end
-        items_from_recipes(to_ignore)
+        calculate_flammabilities()
     end
 })
 

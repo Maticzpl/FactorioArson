@@ -1,4 +1,4 @@
-local strenght = settings.startup["maticzplars-explosion-damage"].value
+local strength = settings.startup["maticzplars-explosion-damage"].value
 
 -- TODO, fix and redo EVERYTHING
 local explosion = util.copy(data.raw["explosion"]["medium-explosion"])
@@ -12,7 +12,7 @@ dmg_explosion.name = "maticzplars-damage-explosion"
 
 dmg_explosion.type = "explosion"
 dmg_explosion.name = "maticzplars-damage-explosion"
--- dmg_explosion.damage = {amount = strenght, type = "explosion"}
+-- dmg_explosion.damage = {amount = strength, type = "explosion"}
 
 
 local fire_mod = util.copy(data.raw["fire"]["fire-flame"])

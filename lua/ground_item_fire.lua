@@ -1,9 +1,13 @@
+local flammability_manager = require("flammability_manager")
 -- TODO: Fix bug https://mods.factorio.com/mod/Arson/discussion/66f9196ad24a3f213f62ff9f
 
 ---@param item LuaEntity
 local function on_item_fire(item)
-    local fname = item.stack.name
-    local fuel = storage.flammable[fname]
+    local name = item.stack.name
+    local fuel = flammability_manager.get_flammability(name)
+    if not fuel or fuel.strength <= 0 then
+        return
+    end
 
     if storage.cooldown == nil then
         storage.cooldown = {}
@@ -92,9 +96,7 @@ local function init()
                             })
 
                             for _, item in pairs(items) do
-                                if storage.flammable[item.stack.name] ~= nil then
-                                    on_item_fire(item)
-                                end                    
+                                on_item_fire(item)   
                             end
                         end
                     end 
