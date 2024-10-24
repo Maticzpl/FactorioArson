@@ -5,16 +5,19 @@ local function on_belt_fire(event)
     ---@type uint 
     for i = 1, ent.get_max_transport_line_index() do
         local line = ent.get_transport_line(i)
-        local contents = line.get_contents()
+        local contents = {}
+
+        for _, item_stack in ipairs(line.get_contents()) do
+            contents[item_stack.name] = item_stack;
+        end
 
         for _, fuel in pairs(storage.flammable) do
-            local fname = fuel.name;
+            local fname = fuel.name
+            
             if contents[fname] ~= nil then
-                local amount = contents[fname]
+                local amount = contents[fname].count
 
-                if storage.cooldown == nil then
-                    storage.cooldown = {}
-                end
+                storage.cooldown = storage.cooldown or {}                
                 
                 if storage.cooldown[ent.unit_number] == nil or type(storage.cooldown[ent.unit_number]) == "number" then
                     storage.cooldown[ent.unit_number] = {}                        
@@ -57,9 +60,9 @@ local function on_belt_fire(event)
                                     if x == 0 and y == 0 then
                                         ent.surface.create_entity({name=fuel.explosion, position=ent.position})  
                                     else
-                                        local pos = {x=0, y=0};
-                                        pos.x = ent.position.x + x + 0.5;
-                                        pos.y = ent.position.y + y + 0.5;
+                                        local pos = {x=0, y=0}
+                                        pos.x = ent.position.x + x + 0.5
+                                        pos.y = ent.position.y + y + 0.5
                                         ent.surface.create_entity({name="maticzplars-damage-explosion", position=pos})                                          
                                     end    
                                 end                              
@@ -68,7 +71,7 @@ local function on_belt_fire(event)
                     end
                 end
 
-                storage.cooldown[ent.unit_number][i] = storage.cooldown[ent.unit_number][i] - 1;     
+                storage.cooldown[ent.unit_number][i] = storage.cooldown[ent.unit_number][i] - 1  
             end
         end
     end

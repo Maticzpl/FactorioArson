@@ -1,5 +1,4 @@
 -- TODO: Fix bug https://mods.factorio.com/mod/Arson/discussion/66f9196ad24a3f213f62ff9f
-local fires = {}
 
 ---@param item LuaEntity
 local function on_item_fire(item)
@@ -30,9 +29,9 @@ local function on_item_fire(item)
                         if x == 0 and y == 0 then
                             item.surface.create_entity({name=fuel.explosion, position=item.position})  
                         else
-                            local pos = {x=0, y=0};
-                            pos.x = item.position.x + x + 0.5;
-                            pos.y = item.position.y + y + 0.5;
+                            local pos = {x=0, y=0}
+                            pos.x = item.position.x + x + 0.5
+                            pos.y = item.position.y + y + 0.5
                             item.surface.create_entity({name="maticzplars-damage-explosion", position=pos})                                          
                         end    
                     end                              
@@ -44,7 +43,7 @@ local function on_item_fire(item)
     end
 
     if storage.cooldown[id] ~= nil then
-        storage.cooldown[id] = storage.cooldown[id] - 1;           
+        storage.cooldown[id] = storage.cooldown[id] - 1
     end
 end
 
@@ -61,11 +60,14 @@ local function init()
                 return
             end
 
+            storage.ground_fires = storage.ground_fires or {}
+            
+
             local surf = entity.surface.name        
-            if fires[surf] == nil then
-                fires[surf] = {}
+            if storage.ground_fires[surf] == nil then
+                storage.ground_fires[surf] = {}
             end
-            table.insert(fires[surf], entity)            
+            table.insert(storage.ground_fires[surf], entity)            
         end
     )
 
@@ -73,7 +75,9 @@ local function init()
         if settings.global["maticzplars-burn-ground-items"].value then 
             for _, surface in pairs(game.surfaces) do            
 
-                local f = fires[surface.name]
+                storage.ground_fires = storage.ground_fires or {}
+
+                local f = storage.ground_fires[surface.name]
                 if f and #f > 0 then              
                     for i = 1, math.max(#f/4, 1), 1 do                    
                         local i = math.random(1, #f)
@@ -102,7 +106,7 @@ local function init()
     script.on_nth_tick(450, function (tick_data)
         -- since a fire entity exists until the black sooth on the ground dissapears it would be considered a fire for too long for ground items
         -- so this is a really bad way to fix that
-        fires = {}
+        storage.ground_fires = {}
     end)
 end
 

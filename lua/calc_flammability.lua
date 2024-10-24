@@ -1,110 +1,24 @@
-local function populate_recipe_table(items, fluids)    
-    for name, recipe in pairs(prototypes.recipe) do
-        for _, product in ipairs(recipe.products) do
-            if product.type == "item" then                    
-                if items[product.name] == nil then
-                    items[product.name] = {}
-                end
-                table.insert(items[product.name], recipe)
-            else
-                if fluids[product.name] == nil then
-                    fluids[product.name] = {}
-                end
-                table.insert(fluids[product.name], recipe)
-            end
-        end  
-    end
-end
-
-local function calculate_proximity(items, fluids)
-    local proximity = { -- just vanilla
-        ["stone"] = 0,
-        ["iron-ore"] = 0,
-        ["copper-ore"] = 0,
-        ["uranium-ore"] = 0,
-        ["coal"] = 0,
-        ["wood"] = 0,
-    }
-
-    for name, item in pairs(prototypes.item) do
-        if items[name] == nil then
-            proximity[name] = 0
-        end
-    end
-
-    for name, fluid in pairs(prototypes.fluid) do
-        if fluids[name] == nil then
-            proximity[name] = 0
-        end        
-    end
-
-    local itterated = {}
-    local function calculate_proximity_recursively(name)
-        if itterated[name] ~= nil then
-            return
-        end
-        itterated[name] = true
-
-        local recipes = items[name]
-        if recipes == nil then
-            recipes = fluids[name]
-        end
-        if recipes == nil then
-            return
-        end
-
-        local lowest = 999999999
-        for i, recipe in ipairs(recipes) do
-            for _, ingredient in ipairs(recipe.ingredients) do
-                if proximity[ingredient.name] ~= nil then
-                    lowest = math.min(proximity[ingredient.name] + 1, lowest)
-                else
-                    local result = calculate_proximity_recursively(ingredient.name)
-                    if result then
-                        lowest = math.min(result + 1, lowest)                        
-                    end
-                end
-            end
-        end
-        return lowest
-    end
-
-    for name, item in pairs(prototypes.item) do
-        itterated = {}
-        local res = calculate_proximity_recursively(name)
-        if proximity[name] == nil and res then
-            proximity[name] = res
-        --elseif not res then
-            --log("Cant get proximity of "..name)
-        end
-    end
-    for name, fluid in pairs(prototypes.fluid) do
-        itterated = {}
-        local res = calculate_proximity_recursively(name)
-        if proximity[name] == nil and res then
-            proximity[name] = res
-        -- elseif not res then
-        --     log("Cant get proximity of "..name)
-        end
-    end
-    return proximity
-end
+local item_graph = require("item_graph")
+local flammability_manager = require("flammability_manager")
+local Queue = require("utility").Queue
 
 -- This is gonna cause some lag on save init / config change
 ---@param ignore string[]?
-local function items_from_recipes(ignore)    
-    local recipes_by_items = {}
-    local recipes_by_fluids = {}
+local function calculate_flammabilities(ignore)    
+    item_graph.update_recipie_map()
 
-    populate_recipe_table(recipes_by_items, recipes_by_fluids)
-	--- @type {[string]: LuaRecipe[]}
-	storage.recipies_item_cache = recipes_by_items
-	--- @type {[string]: LuaRecipe[]}
-	storage.recipies_fluid_cache = recipes_by_fluids
+    local roots = { 
+        "stone",
+        "iron-ore",
+        "copper-ore",
+        "uranium-ore",
+        "coal",
+        "wood",
+    }
+    item_graph.calculate_depths_from(roots)
 
-    local proximity = calculate_proximity(recipes_by_items, recipes_by_fluids)
-	storage.proximity_cache = proximity
 
+    -- TODO: Merge with UI modification behaviour
     local dont_calculate = {
         "electronic%-circuit",
         "advanced%-circuit",
@@ -127,8 +41,73 @@ local function items_from_recipes(ignore)
         end
     end
 
-    local itterated = {}
+    -- replace with breadht first search
 
+    local queue = Queue:new()
+    local explored = {}
+    
+    for _, root in ipairs(roots) do
+        local root_flammability = flammability_manager.get_flammability(root)
+        
+        local depth_from_flammable = 9999
+        if root_flammability then
+            depth_from_flammable = 0
+        end
+
+        queue:enqueue({
+            explore_children_of  = root,
+            parent_item_strenght = (root_flammability or {strength = 0}).strength,
+            parent_fluids_strenght = 0,
+            total_count = 1,
+            depth_from_flammable = depth_from_flammable
+        })
+        explored[root] = true
+    end
+
+    while #queue > 0 do
+        local parent = queue:dequeue()
+
+        for _, child in ipairs(item_graph.get_child_items(parent.explore_children_of)) do
+            ---@type Flammability
+            local flammability = flammability_manager.get_flammability(child.name) or {
+                name = child.name,
+                fireball = false,
+                strength = 0,
+                calculated = true,
+            }
+
+            flammability.strenght = ( 
+                flammability.strenght + 
+                (parent.parent_item_strenght + parent.parent_fluids_strenght) / parent.total_count
+            ) / 2
+
+            if flammability.strenght > 5 then
+                flammability.explosion_radius = flammability.strenght / 14
+                flammability.explosion = "maticzplars-damage-explosion"
+            end
+
+            flammability.fireball = parent.parent_fluids_strenght > parent.parent_item_strenght - 1
+
+            flammability.cooldown = math.max(5 / flammability.strenght, 8)
+            flammability.times_calculated = flammability.times_calculated + 1
+
+            storage.flammable[flammability.name] = flammability
+
+            local parent_count = #item_graph.get_parent_items(child.name)
+            if explored[child.name] == nil and flammability.times_calculated == parent_count then
+                queue:enqueue({ -- TODO: figure this out
+                    explore_children_of = child,
+                    parent_item_strenght = 0,
+                    parent_fluids_strenght = 0,
+                    total_count = 1,
+                    depth_from_flammable = parent.depth_from_flammable + 1
+                })
+                explored[child.name] = true
+            end
+        end
+    end
+
+    local itterated = {}
     -- total count is number of ingrediants
     ---@param name string
     ---@return {items: number, fluids: number, total_count: number, recursive: number}?
@@ -139,6 +118,7 @@ local function items_from_recipes(ignore)
         end
         itterated[name] = (itterated[name] or 0) + 1
 
+        -- TODO: Replace with storage.edits
         for _, skip in ipairs(dont_calculate) do            
             if string.match(name, skip) or string.match(name, "science%-pack") then
                 if debug then log("skipped "..name) end
@@ -277,4 +257,4 @@ local function items_from_recipes(ignore)
 
 end
 
-return items_from_recipes
+return calculate_flammabilities

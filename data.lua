@@ -12,7 +12,7 @@ dmg_explosion.name = "maticzplars-damage-explosion"
 
 dmg_explosion.type = "explosion"
 dmg_explosion.name = "maticzplars-damage-explosion"
-dmg_explosion.damage = {amount = strenght, type = "explosion"}
+-- dmg_explosion.damage = {amount = strenght, type = "explosion"}
 
 
 local fire_mod = util.copy(data.raw["fire"]["fire-flame"])

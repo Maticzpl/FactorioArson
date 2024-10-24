@@ -32,3 +32,10 @@ Version: 0.2.2
 Date: 02. 07. 2023
   Minor changes:
     - Hopefully fix a crash with invalid items on ground
+---------------------------------------------------------------------------------------------------
+Version: 1.0.0
+Date: 24. 10. 2024
+  Major changes:
+    - Configurable flammability of every item through a GUI
+  Minor changes:
+    - Stuff TODO: write them out xd

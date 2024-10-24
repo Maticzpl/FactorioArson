@@ -1,10 +1,11 @@
-local items_from_recipes = require("lua/calc_flammability")
+local calculate_flammabilities = require("lua/calc_flammability")
+local flammability_manager = require("lua/flammability_manager")
 local on_belt_fire = require("lua/belt_fire")
 local on_container_fire = require("lua/container_fire")
 local on_tank_fire = require("lua/fluid_tank_fire")
 local init_ground_item_fire_events = require("lua/ground_item_fire")
 local show_gui = require("lua/gui")
-
+local mod_gui = require("mod-gui")
 
 local function generate_barrels()    
     for _, fluid in pairs(storage.fluids) do
@@ -23,49 +24,41 @@ local function generate_barrels()
 end
 
 local function load_flammables()    
-    storage.flammable = {
-        ["wood"] = {fireball=false, cooldown=3, strength=3, name="wood"},
-        ["coal"] = {fireball=false, cooldown=2, strength=7, name="coal"},
-        ["solid-fuel"] = {fireball=false, cooldown=1, strength=10, name="solid-fuel"},
-    
-        -- ["crude-oil-barrel"] = {fireball=true, cooldown=10, strength=6, name="crude-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.3},
-        -- ["heavy-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="heavy-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
-        -- ["light-oil-barrel"] = {fireball=true, cooldown=10, strength=10, name="light-oil-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
-        -- ["petroleum-gas-barrel"] = {fireball=true, cooldown=10, strength=10, name="petroleum-gas-barrel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.8},
-    
-        ["rocket-fuel"] = {fireball=true, cooldown=8, strength=15, name="rocket-fuel", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=1},
-        ["flamethrower-ammo"] = {fireball=true, cooldown=10, strength=16, name="flamethrower-ammo", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
-    
-        ["grenade"] = {fireball=false, cooldown=15, strength=2, name="grenade", explosion="grenade-explosion", explosion_radius=3},
-        ["cluster-grenade"] = {fireball=false, cooldown=15, strength=2, name="cluster-grenade", explosion="grenade-explosion", explosion_radius=3},
-    
-        ["firearm-magazine"] = {fireball=false, cooldown=5, strength=2, name="firearm-magazine", explosion="maticzplars-damage-explosion", explosion_radius=0.2},
-        ["piercing-rounds-magazine"] = {fireball=false, cooldown=5, strength=3, name="piercing-rounds-magazine", explosion="maticzplars-damage-explosion", explosion_radius=0.3},
-        ["uranium-rounds-magazine"] = {fireball=false, cooldown=5, strength=4, name="uranium-rounds-magazine", explosion="maticzplars-damage-explosion", explosion_radius=0.4},
-        
-        ["rocket"] = {fireball=false, cooldown=10, strength=10, name="rocket", explosion="maticzplars-damage-explosion", explosion_radius=0.4},
-        ["explosive-rocket"] = {fireball=false, cooldown=10, strength=7, name="explosive-rocket", explosion="maticzplars-damage-explosion", explosion_radius=0.7},
-        ["cannon-shell"] = {fireball=false, cooldown=10, strength=7, name="cannon-shell", explosion="maticzplars-damage-explosion", explosion_radius=0.6},
-        ["explosive-cannon-shell"] = {fireball=false, cooldown=10, strength=7, name="explosive-cannon-shell", explosion="maticzplars-damage-explosion", explosion_radius=1},
-        ["uranium-cannon-shell"] = {fireball=false, cooldown=10, strength=7, name="uranium-cannon-shell", explosion="maticzplars-damage-explosion", explosion_radius=1},
-        ["explosive-uranium-cannon-shell"] = {fireball=false, cooldown=10, strength=7, name="explosive-uranium-cannon-shell", explosion="maticzplars-damage-explosion", explosion_radius=1.4},
-    
-        ["shotgun-shell"] = {fireball=false, cooldown=5, strength=2, name="shotgun-shell", explosion="maticzplars-damage-explosion", explosion_radius=0.2},
-        ["piercing-shotgun-shell"] = {fireball=false, cooldown=5, strength=3, name="piercing-shotgun-shell", explosion="maticzplars-damage-explosion", explosion_radius=0.3},
-    
-        ["explosives"] = {fireball=false, cooldown=5, strength=20, name="explosives", explosion="maticzplars-dynamite-explosion", explosion_radius=3},
-    }
-    
-    storage.fluids =   
-    {
-        ["crude-oil"] = {fireball=true, strength=6, name="crude-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.5},
-        ["light-oil"] = {fireball=true, strength=10, name="light-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},
-        ["heavy-oil"] = {fireball=true, strength=10, name="heavy-oil", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.6},    
-        ["petroleum-gas"] = {fireball=true, strength=10, name="petroleum-gas", explosion="maticzplars-rocket-fuel-explosion", explosion_radius=0.7}, -- not even a fluid lol
-    }
+    storage.edits = storage.edits or {}
 
-    generate_barrels()
-    items_from_recipes()
+    flammability_manager.add_flammable_item("wood",       false, 3, 2, false)
+    flammability_manager.add_flammable_item("coal",       false, 2, 7, false)
+    flammability_manager.add_flammable_item("solid-fuel", false, 1, 10, false)
+
+    flammability_manager.add_flammable_item("rocket-fuel",       true, 8,  15, false, "maticzplars-rocket-fuel-explosion", 1)
+    flammability_manager.add_flammable_item("flamethrower-ammo", true, 10, 16, false, "maticzplars-rocket-fuel-explosion", 0.5)
+
+    flammability_manager.add_flammable_item("grenade",         false, 15, 2, false, "grenade-explosion", 3)
+    flammability_manager.add_flammable_item("cluster-grenade", false, 15, 2, false, "grenade-explosion", 3)
+
+    flammability_manager.add_flammable_item("firearm-magazine",         false, 5, 2, false, "maticzplars-damage-explosion", 0.2)
+    flammability_manager.add_flammable_item("piercing-rounds-magazine", false, 5, 3, false, "maticzplars-damage-explosion", 0.3)
+    flammability_manager.add_flammable_item("uranium-rounds-magazine",  false, 5, 4, false, "maticzplars-damage-explosion", 0.4)
+    
+    flammability_manager.add_flammable_item("rocket",                         false, 10, 10, false, "maticzplars-damage-explosion", 0.4)
+    flammability_manager.add_flammable_item("explosive-rocket",               false, 10, 7, false,  "maticzplars-damage-explosion", 0.7)
+    flammability_manager.add_flammable_item("cannon-shell",                   false, 10, 7, false,  "maticzplars-damage-explosion", 0.6)
+    flammability_manager.add_flammable_item("explosive-cannon-shell",         false, 10, 7, false,  "maticzplars-damage-explosion", 1)
+    flammability_manager.add_flammable_item("uranium-cannon-shell",           false, 10, 7, false,  "maticzplars-damage-explosion", 1)
+    flammability_manager.add_flammable_item("explosive-uranium-cannon-shell", false, 10, 7, false,  "maticzplars-damage-explosion", 1.4)
+
+    flammability_manager.add_flammable_item("shotgun-shell",          false, 5, 2, false, "maticzplars-damage-explosion", 0.2)
+    flammability_manager.add_flammable_item("piercing-shotgun-shell", false, 5, 3, false, "maticzplars-damage-explosion", 0.3)
+
+    flammability_manager.add_flammable_item("explosives", false, 5, 20, false, "maticzplars-dynamite-explosion", 3)
+
+
+    flammability_manager.add_flammable_fluid("crude-oil",     true, 6, false,  "maticzplars-rocket-fuel-explosion", 0.5)
+    flammability_manager.add_flammable_fluid("light-oil",     true, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
+    flammability_manager.add_flammable_fluid("heavy-oil",     true, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
+    flammability_manager.add_flammable_fluid("petroleum-gas", true, 10, false, "maticzplars-rocket-fuel-explosion", 0.7)
+
+    calculate_flammabilities()
 end
 
 script.on_init(load_flammables)
@@ -135,9 +128,32 @@ script.on_event(
     }
 )
 
-script.on_event(
+storage.host_joined = false
+script.on_event( -- TODO: Dont show on startup
 	defines.events.on_player_created,
-	show_gui
+    --- @param event EventData.on_player_created
+    function (event)
+        if storage.host_joined then
+            return
+        end
+        storage.host_joined = true
+        
+        mod_gui.get_button_flow(game.players[event.player_index]).add{
+            type="sprite-button", 
+            name="maticzplars-mod-button", 
+            sprite="utility/refresh", 
+            style=mod_gui.button_style
+        }
+
+        script.on_event(defines.events.on_gui_click, 
+            --- @param click_event EventData.on_gui_click
+            function (click_event)
+                if click_event.element.name == "maticzplars-mod-button" then
+                   show_gui(event) -- closures my beloved 
+                end
+            end
+        )
+    end
 )
 
 local to_ignore = {}
