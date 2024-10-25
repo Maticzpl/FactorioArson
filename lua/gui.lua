@@ -18,44 +18,44 @@ local function fill_flammables_icons(content)
     content.clear()
 
 	---@type { [string]: "item"|"fluid" }[]
-    local flammables_sorted = {}
+    local graph_layers = {}
 
     -- TODO: Dont use raw storage. stuff for this
     for _, item in pairs(prototypes.item) do
-        if storage.flammable[item.name] or storage.edits[item.name] then
+        if flammability_manager.get_flammability(item.name) then
             local prox = item_graph.get_depth_from_cache(item.name)
             if not prox then
                 goto continue
             end
             prox = prox + 1 -- cause ipairs later
 
-            if not flammables_sorted[prox] then
-                flammables_sorted[prox] = {}
+            if not graph_layers[prox] then
+                graph_layers[prox] = {}
             end
 
-            flammables_sorted[prox][item.name] = "item"
+            graph_layers[prox][item.name] = "item"
         end
         ::continue::
     end
 
     for _, fluid in pairs(prototypes.fluid) do
-        if storage.fluids[fluid.name] or storage.edits[fluid.name]  then
+        if flammability_manager.get_flammability(fluid.name)  then
             local prox = item_graph.get_depth_from_cache(fluid.name)
             if not prox then
                 goto continue
             end
             prox = prox + 1 
 
-            if not flammables_sorted[prox] then
-                flammables_sorted[prox] = {}
+            if not graph_layers[prox] then
+                graph_layers[prox] = {}
             end
 
-            flammables_sorted[prox][fluid.name] = "fluid"
+            graph_layers[prox][fluid.name] = "fluid"
         end
         ::continue::
     end
 
-    for prox, items in ipairs(flammables_sorted) do
+    for prox, items in ipairs(graph_layers) do
         if prox ~= 1 then
             content.add({
                 type = "line",
@@ -188,20 +188,22 @@ local function show_description(event)
         (string.find(event.element.name, "^maticzplars%-desc-sprite%-") and event.tick - last_hover_tick > 10) then
         last_hover_tick = event.tick
 
-        -- wow thats stupid code lmao
-        local itter = string.gmatch(event.element.name, '([^%-]+)')
-        itter()
-        itter()
-        itter()
-        local flammable = itter()
-        selected_flammable = flammable
-
+        -- wonder if you can make an i
+        local name_split = {}
+        local identifier = ""
+        for fragment in string.gmatch(event.element.name, '([^%-]+)') do
+            if #name_split >= 3 then
+                identifier = identifier .. "-" .. fragment
+            end
+            table.insert(name_split, fragment)
+        end
+        identifier = identifier:sub(2)
 
         --- @type any
-        local prototype = prototypes.item[flammable]
-        local flammability = flammability_manager.get_flammability(flammable)
+        local prototype = prototypes.item[identifier]
+        local flammability = flammability_manager.get_flammability(identifier)
         if not prototype then
-            prototype = prototypes.fluid[flammable]
+            prototype = prototypes.fluid[identifier]
         end
 
         description_frame.clear()
@@ -247,7 +249,7 @@ local function show_description(event)
         --- @type {[string]: Ingredient}
         local ingredients = {}
 
-        for _, item in ipairs(item_graph.get_parent_items(flammable, true)) do
+        for _, item in ipairs(item_graph.get_parent_items(identifier, true)) do
             ingredients[item.name] = item
         end
 
