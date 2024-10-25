@@ -7,6 +7,12 @@ local init_ground_item_fire_events = require("lua/ground_item_fire")
 local gui = require("lua/gui")
 
 local function load_flammables()    
+    flammability_manager.add_root_element("water")
+    flammability_manager.add_root_element("stone")
+    flammability_manager.add_root_element("iron-ore")
+    flammability_manager.add_root_element("copper-ore")
+    flammability_manager.add_root_element("uranium-ore")
+
     flammability_manager.add_flammable_item("wood",       false, 3, 2,  false, nil, nil, true)
     flammability_manager.add_flammable_item("coal",       false, 2, 7,  false, nil, nil, true)
     flammability_manager.add_flammable_item("solid-fuel", false, 1, 10, false, nil, nil)
@@ -41,16 +47,24 @@ local function load_flammables()
 
     ---@type FlammabilityEdit
     local dont_burn = { strength = 0 }
-    -- TODO: Remove unnecessary edits here
-    flammability_manager.make_edit("electronic-circuit",    dont_burn)
-    flammability_manager.make_edit("advanced-circuit",      dont_burn)
-    flammability_manager.make_edit("processing-unit",       dont_burn)
-    flammability_manager.make_edit("plastic-bar",           dont_burn)
-    flammability_manager.make_edit("electric-engine-unit",  dont_burn)
-    flammability_manager.make_edit("battery",               dont_burn)
-    flammability_manager.make_edit("steel",                 dont_burn)
-    flammability_manager.make_edit("iron",                  dont_burn)
-    flammability_manager.make_edit("water",                 dont_burn)
+    
+    flammability_manager.make_edit("plastic-bar",   dont_burn)
+    flammability_manager.make_edit("lubricant",     dont_burn)
+    flammability_manager.make_edit("sulfuric-acid", dont_burn)
+    flammability_manager.make_edit("steel",         dont_burn)
+    flammability_manager.make_edit("barrel",        dont_burn)
+    flammability_manager.make_edit("rocket-part",   dont_burn)
+    -- Space Age
+    flammability_manager.make_edit("superconductor",    dont_burn)
+    flammability_manager.make_edit("tungsten-carbide",  dont_burn)
+    flammability_manager.make_edit("carbon-fiber",      dont_burn)
+    flammability_manager.make_edit("fluoroketone-cold", dont_burn)
+    flammability_manager.make_edit("electrolyte",    dont_burn)
+
+    for name, _ in pairs(prototypes.get_item_filtered({{filter = "subgroup", subgroup = "science-pack" }})) do
+        flammability_manager.make_edit(name, dont_burn)
+    end
+
 
     calculate_flammabilities()
 end

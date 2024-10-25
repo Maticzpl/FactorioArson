@@ -10,6 +10,10 @@ function graph.update_recipie_map()
     storage.graph.recipies_by_ingredient = {}
 
     for _, recipe in pairs(prototypes.recipe) do
+        if recipe.category == "recycling" then
+            goto continue
+        end
+        
         for _, product in ipairs(recipe.products) do
             if storage.graph.recipies_by_product[product.name] == nil then
                 storage.graph.recipies_by_product[product.name] = {}
@@ -22,20 +26,28 @@ function graph.update_recipie_map()
             end
             table.insert(storage.graph.recipies_by_ingredient[ingredient.name], recipe)
         end  
+        ::continue::
     end
 end
 
 --- @param identifier string
-function graph.get_child_items(identifier)
-    --- @type Product[]
+--- @param check_depth boolean? Make sure the depth cache is populated before using
+function graph.get_child_items(identifier, check_depth)
+    check_depth = check_depth or false
+
+    --- @type {[string]: Product}
     local children = {}
 
     for _, recipie in pairs(storage.graph.recipies_by_ingredient[identifier] or {}) do
         for _, product in ipairs(recipie.products) do
-            if children[product.name] then
-                children[product.name].amount = (children[product.name].amount or 1) + (product.amount or 1)
-            else
-                children[product.name] = product
+            if not check_depth or 
+                (graph.get_depth_from_cache(identifier) or 9999) <    -- parent
+                (graph.get_depth_from_cache(product.name) or 0) then  -- child       
+                if children[product.name] then
+                    children[product.name].amount = (children[product.name].amount or 1) + (product.amount or 1)
+                else
+                    children[product.name] = product
+                end
             end
         end
     end
@@ -48,25 +60,30 @@ end
 function graph.get_parent_items(identifier, check_depth)
     check_depth = check_depth or false
 
-
-    --- @type Ingredient[]
+    --- @type {[string]: Ingredient}
     local parents = {}
 
-    for _, recipie in pairs(storage.graph.recipies_by_product[identifier]) do
+    --- @type {[string]: number}
+    local ammounts = {}
+
+    for _, recipie in pairs(storage.graph.recipies_by_product[identifier] or {}) do
         for _, ingredient in ipairs(recipie.ingredients) do
             if not check_depth or 
                 (graph.get_depth_from_cache(identifier) or 0) >             -- child
-                (graph.get_depth_from_cache(ingredient.name) or 9999) then  -- parent             
+                (graph.get_depth_from_cache(ingredient.name) or 9999) then  -- parent           
+                                        
                 if parents[ingredient.name] then
                     parents[ingredient.name].amount = parents[ingredient.name].amount + ingredient.amount
                 else
                     parents[ingredient.name] = ingredient
                 end
+
+                ammounts[ingredient.name] = (ammounts[ingredient.name] or 0) + ingredient.amount         
             end
         end
     end
 
-    return parents
+    return parents, ammounts
 end
 
 --- Fills depth cache 

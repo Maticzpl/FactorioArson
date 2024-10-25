@@ -62,6 +62,47 @@ function manager.add_flammable_fluid(identifier, fireball, strength, calculated,
     end
 end
 
+-- TODO: does name have to be separate from flammability
+
+---@param flammability Flammability
+---@param type string? item or fluid
+function manager.add_flammable(name, flammability, type)
+    if not type then
+        if prototypes.item[name] then
+            type = "item"
+        elseif prototypes.fluid[name] then
+            type = "fluid"
+        else
+            error("Flammable isn't an item nor a fluid")
+        end
+    end
+
+    if type == "item" then
+        manager.add_flammable_item(
+            name,
+            flammability.fireball,
+            flammability.cooldown,
+            flammability.strength,
+            flammability.calculated,
+            flammability.explosion,
+            flammability.explosion_radius
+        )
+    elseif type == "fluid" then
+        manager.add_flammable_fluid(
+            name,
+            flammability.fireball,
+            flammability.strength,
+            flammability.calculated,
+            flammability.explosion,
+            flammability.explosion_radius
+        )
+    end
+end
+
+function manager.add_root_element(identifier)
+    manager.add_flammable(identifier, { name = identifier, strength = 0, calculated = false, fireball = false, root_element = true })
+end
+
 --- Gets flammability of item or fluid
 ---@param identifier string
 ---@return Flammability | nil
@@ -89,11 +130,18 @@ end
 function manager.get_flammability(identifier)
     local flammability = util.copy(manager.get_raw_flammability(identifier)) or {}
 
-    for k, v in pairs(storage.edits[identifier] or {}) do
+    for k, v in pairs(manager.get_edit(identifier)) do
         flammability[k] = v
     end
 
     if table.compare(flammability, {}) then
+        return nil
+    end
+
+    -- If there are no edits and not flammable, ignore
+    if table.compare(manager.get_edit(identifier), {}) and
+        (flammability.strength == nil or flammability.strength <= 0) and
+        not flammability.root_element then
         return nil
     end
 

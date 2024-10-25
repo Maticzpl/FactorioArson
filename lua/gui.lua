@@ -4,11 +4,13 @@ local DESC_SECTION_WIDTH = 51 * DESC_INGREDIANT_GRID_COLUMNS
 local MAIN_SECTION_WIDTH = 49 * MAIN_GRID_COLUMNS
 local WIDTH = MAIN_SECTION_WIDTH + DESC_SECTION_WIDTH
 local HEIGHT = 600
+local DRAGGABLE_HEIGHT = 24
 
 local util = require("./utility")
 local flammability_manager = require("flammability_manager")
 local item_graph           = require("item_graph")
 local mod_gui = require("mod-gui")
+local calc_flammability = require("calc_flammability")
 
 --- @type LuaGuiElement
 local description_frame
@@ -22,7 +24,8 @@ local function fill_flammables_icons(content)
 
     -- TODO: Dont use raw storage. stuff for this
     for _, item in pairs(prototypes.item) do
-        if flammability_manager.get_flammability(item.name) then
+        local flammability = flammability_manager.get_flammability(item.name)  
+        if flammability then
             local prox = item_graph.get_depth_from_cache(item.name)
             if not prox then
                 goto continue
@@ -39,7 +42,8 @@ local function fill_flammables_icons(content)
     end
 
     for _, fluid in pairs(prototypes.fluid) do
-        if flammability_manager.get_flammability(fluid.name)  then
+        local flammability = flammability_manager.get_flammability(fluid.name)  
+        if flammability then
             local prox = item_graph.get_depth_from_cache(fluid.name)
             if not prox then
                 goto continue
@@ -83,21 +87,21 @@ local function fill_flammables_icons(content)
             end
 
             --- @type LuaGuiElement
-            local bg = row.add({
+            local button_background = row.add({
                 type = "button",
                 name = "maticzplars-flammable-button-" .. item_name,
                 style = "slot_button",
                 sprite = sprite
             })
-            bg.style.margin = 1
+            button_background.style.margin = 1
 
             local edit = flammability_manager.get_edit(item_name)
             if edit.strength and edit.strength <= 0 then             
-                bg.style = "red_slot_button"
+                button_background.style = "red_slot_button" -- TODO More colors for different stuff like "flammable but values changed"
             end
 
             --- @type LuaGuiElement
-            local icon = bg.add({ 
+            local icon = button_background.add({ 
                 type = "sprite",
                 name = "maticzplars-sprite-" .. item_name,
                 sprite = sprite
@@ -146,7 +150,7 @@ local function show_gui(event)
     })
     draggable.drag_target = frame
     draggable.style.horizontally_stretchable = true
-    draggable.style.height = 24
+    draggable.style.height = DRAGGABLE_HEIGHT
 
     title_bar.add({
         type = "sprite-button",
@@ -166,6 +170,8 @@ local function show_gui(event)
         name = "maticzplars-content-scroll",
         direction = "vertical"
     })
+    content.style.vertically_stretchable = true
+    content.vertical_scroll_policy = "auto-and-reserve-space"
     content.style.horizontally_stretchable = true
 
     fill_flammables_icons(content)
@@ -175,147 +181,139 @@ local function show_gui(event)
         name = "maticzplars-description-frame",
         direction = "vertical"
     })
+    description_frame.style.vertically_stretchable = true
     description_frame.style.width = DESC_SECTION_WIDTH
 
 end
 
-local selected_flammable
-local last_hover_tick = 0
+local function show_description(identifier)
+    -- TODO: List edits as in is no longer flammable, has explosion size changed etc
 
---- @param event EventData.on_gui_click
-local function show_description(event)
-    if string.find(event.element.name, "^maticzplars%-flammable%-button%-") or 
-        (string.find(event.element.name, "^maticzplars%-desc-sprite%-") and event.tick - last_hover_tick > 10) then
-        last_hover_tick = event.tick
+    --- @type any
+    local prototype = prototypes.item[identifier]
+    local flammability = flammability_manager.get_flammability(identifier)
+    if not prototype then
+        prototype = prototypes.fluid[identifier]
+    end
 
-        -- wonder if you can make an i
-        local name_split = {}
-        local identifier = ""
-        for fragment in string.gmatch(event.element.name, '([^%-]+)') do
-            if #name_split >= 3 then
-                identifier = identifier .. "-" .. fragment
-            end
-            table.insert(name_split, fragment)
-        end
-        identifier = identifier:sub(2)
+    description_frame.clear()
 
-        --- @type any
-        local prototype = prototypes.item[identifier]
-        local flammability = flammability_manager.get_flammability(identifier)
-        if not prototype then
-            prototype = prototypes.fluid[identifier]
-        end
+    if not flammability then
+        return
+    end
 
-        description_frame.clear()
+    local title = description_frame.add({
+        type = "label",
+        caption = prototype.localised_name,
+        name = "maticzplars-desc-title",
+        style = "orange_label",
+    })
+    title.style.single_line = false
+    title.style.maximal_width = DESC_SECTION_WIDTH - 20
 
-        if not flammability then
-            return
-        end
+    local burn_rate = ""
+    if flammability.cooldown then
+        burn_rate = "\nBurn Rate: " .. string.format("%.2f", (100 / flammability.cooldown))
+    end
+    flammability.explosion_radius = flammability.explosion_radius or 0
 
-        local title = description_frame.add({
-            type = "label",
-            caption = prototype.localised_name,
-            name = "maticzplars-desc-title",
-            style = "orange_label",
-        })
-        title.style.single_line = false
-        title.style.maximal_width = DESC_SECTION_WIDTH - 20
+    local desc_label = description_frame.add({
+        type = "label",
+        name = "maticzplars-desc",
+        caption = "Flammability: " ..  string.format("%.2f", flammability.strength) ..
+            "\nExplosion Size: " .. string.format("%.2f", flammability.explosion_radius) ..
+            "\nFireball: " .. tostring(flammability.fireball) ..
+        burn_rate
+    })
+    desc_label.style.single_line = false
 
-        local burn_rate = ""
-        if flammability.cooldown then
-            burn_rate = "\nBurn Rate: " .. string.format("%.00f", (100 / flammability.cooldown))
-        end
-        flammability.explosion_radius = flammability.explosion_radius or 0
-
-        local desc_label = description_frame.add({
-            type = "label",
-            name = "maticzplars-desc",
-            caption = "Flammability: " ..  string.format("%.00f", flammability.strength) ..
-                "\nExplosion Size: " .. string.format("%.00f", flammability.explosion_radius) ..
-                "\nFireball: " .. tostring(flammability.fireball) ..
-            burn_rate
-        })
-        desc_label.style.single_line = false
+    description_frame.add({
+        type = "label",
+        caption = "Flammable Ingredients",
+        name = "maticzplars-desc-ingredients",
+        style = "orange_label",
+    })
 
 
-        description_frame.add({
-            type = "label",
-            caption = "Flammable Ingredients",
-            name = "maticzplars-desc-ingredients",
-            style = "orange_label",
-        })
+    --- @type {[string]: Ingredient}
+    local ingredients = {}
 
-
-        --- @type {[string]: Ingredient}
-        local ingredients = {}
-
-        for _, item in ipairs(item_graph.get_parent_items(identifier, true)) do
+    for _, item in pairs(item_graph.get_parent_items(identifier, true)) do
+        local flammability = flammability_manager.get_flammability(item.name)
+        if flammability and flammability.strength > 0 then
             ingredients[item.name] = item
         end
+    end
 
-        local i = 0
-        local row
-        for name, _ in pairs(ingredients) do
-            if i % 4 == 0 then
-                row = description_frame.add({
-                    type = "flow",
-                    direction = "horizontal"
-                })
-            end
-            i = i + 1
-
-            local sprite = "item/" .. name
-
-            if not prototypes.item[name] then
-                sprite = "fluid/" .. name					
-            end
-
-            local icon = row.add({
-                type = "sprite",
-                name = "maticzplars-desc-sprite-" .. name,
-                sprite = sprite
+    local i = 0
+    local row
+    for name, _ in pairs(ingredients) do
+        if i % 4 == 0 then
+            row = description_frame.add({
+                type = "flow",
+                direction = "horizontal"
             })
-            icon.resize_to_sprite = false
-            icon.raise_hover_events = true
-            icon.style.width = 32
-            icon.style.height = 32
+        end
+        i = i + 1
+
+        local sprite = "item/" .. name
+
+        if not prototypes.item[name] then
+            sprite = "fluid/" .. name					
         end
 
-        description_frame.add({
-            type = "empty-widget"
-        }).style.vertically_stretchable = true
-
-
-        description_frame.add({
+        --- @type LuaGuiElement
+        local button_background = row.add({
             type = "button",
-            name = "maticzplars-toggle-flammable-button",
-            caption = "Toggle flammable"
-        })--.style.horizontally_stretchable = true
+            name = "maticzplars-desc-button-" .. name,
+            style = "slot_button",
+            sprite = sprite
+        })
+        button_background.style.margin = 1
 
+        local icon = button_background.add({
+            type = "sprite",
+            name = "maticzplars-desc-sprite",
+            sprite = sprite
+        })
+        icon.resize_to_sprite = false
+        icon.ignored_by_interaction = true
+        icon.resize_to_sprite = false
+        icon.style.width = 32
+        icon.style.height = 32
     end
+
+    description_frame.add({
+        type = "empty-widget"
+    }).style.vertically_stretchable = true
+
+
+    description_frame.add({
+        type = "button",
+        name = "maticzplars-toggle-flammable-button",
+        caption = "Toggle flammable"
+    })--.style.horizontally_stretchable = true
+
 end
 
 
-script.on_event( -- TODO: Dont show on startup
+script.on_event(
     defines.events.on_player_created,
     --- @param player_created_event EventData.on_player_created
     function (player_created_event)
-        -- Check how this is supposed to work in multiplayer
-        -- if storage.host_joined then
-        --     return
-        -- end
-        -- storage.host_joined = true
+        -- TODO Check how this is supposed to work in multiplayer
         
         mod_gui.get_button_flow(game.players[player_created_event.player_index]).add{
             type="sprite-button", 
             name="maticzplars-mod-button", 
-            sprite="utility/refresh", 
+            sprite="utility/refresh", -- TODO: a nice sprite for the button
             style=mod_gui.button_style
-        }
-
-        
+        }        
     end
 )
+
+local selected_flammable = ""
+
 script.on_event(defines.events.on_gui_click, 
     --- @param event EventData.on_gui_click
     function (event)
@@ -338,12 +336,29 @@ script.on_event(defines.events.on_gui_click,
                 flammability_manager.make_edit(selected_flammable, {strength = 0})
             end
 
+            calc_flammability({selected_flammable})
+
             local screen = game.get_player(event.player_index).gui.screen
             fill_flammables_icons(screen["maticzplars-settings"]["maticzplars-horizontal-container"]["maticzplars-content-scroll"])
             return
         end
 
-        show_description(event)
+        if string.find(event.element.name, "^maticzplars%-flammable%-button%-") or 
+            (string.find(event.element.name, "^maticzplars%-desc%-button%-")) then
+            local name_split = {}
+            local identifier = ""
+            for fragment in string.gmatch(event.element.name, '([^%-]+)') do
+                if #name_split >= 3 then
+                    identifier = identifier .. "-" .. fragment
+                end
+                table.insert(name_split, fragment)
+            end
+            identifier = identifier:sub(2)
+            show_description(identifier)
+
+            selected_flammable = identifier
+        end
+
     end
 )
 
