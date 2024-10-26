@@ -98,6 +98,8 @@ local function fill_flammables_icons(content)
             local edit = flammability_manager.get_edit(item_name)
             if edit.strength and edit.strength <= 0 then             
                 button_background.style = "red_slot_button" -- TODO More colors for different stuff like "flammable but values changed"
+            elseif edit.dont_affect_products then
+                button_background.style = "yellow_slot_button"
             end
 
             --- @type LuaGuiElement
@@ -139,7 +141,7 @@ local function show_gui(event)
         type = "label",
         name = "maticzplars-title-label",
         style = "frame_title",
-        caption = "Arson Edit Flammables"
+        caption = "Arson - Edit flammables"
     })
     title.drag_target = frame
 
@@ -164,6 +166,7 @@ local function show_gui(event)
         name = "maticzplars-horizontal-container",
         direction = "horizontal"
     })
+    hcont.style.horizontally_stretchable = true
 
     local content = hcont.add({
         type = "scroll-pane",
@@ -172,7 +175,6 @@ local function show_gui(event)
     })
     content.style.vertically_stretchable = true
     content.vertical_scroll_policy = "auto-and-reserve-space"
-    content.style.horizontally_stretchable = true
 
     fill_flammables_icons(content)
 
@@ -183,7 +185,6 @@ local function show_gui(event)
     })
     description_frame.style.vertically_stretchable = true
     description_frame.style.width = DESC_SECTION_WIDTH
-
 end
 
 local function show_description(identifier)
@@ -287,12 +288,32 @@ local function show_description(identifier)
         type = "empty-widget"
     }).style.vertically_stretchable = true
 
+    local button_frame = description_frame.add({
+        type = "flow",
+        direction = "vertical"
+    })
+    button_frame.style.horizontal_align = "center"
+    button_frame.style.natural_width = DESC_SECTION_WIDTH
 
-    description_frame.add({
+    local caption = "Don't affect products"
+    if flammability.dont_affect_products then 
+        caption = "Affect products" 
+    end
+    local affect_button = button_frame.add({
+        type = "button",
+        name = "maticzplars-affect-products-button",
+        caption = caption
+    })
+
+    caption = "Make flammable"
+    if (flammability.strength or 0) > 0 then 
+        caption = "Make nonflammable" 
+    end
+    local flammable_button = button_frame.add({
         type = "button",
         name = "maticzplars-toggle-flammable-button",
-        caption = "Toggle flammable"
-    })--.style.horizontally_stretchable = true
+        caption = caption,
+    })
 
 end
 
@@ -327,8 +348,10 @@ script.on_event(defines.events.on_gui_click,
             return
         end
 
+        local refresh = false
+
+        -- TODO: obv more settings for edits
         if event.element.name == "maticzplars-toggle-flammable-button" then        
-            -- TODO: obv more settings for edits
             local current = flammability_manager.get_edit(selected_flammable)
             if current.strength and current.strength == 0 then
                 flammability_manager.clear_edit(selected_flammable)
@@ -336,11 +359,18 @@ script.on_event(defines.events.on_gui_click,
                 flammability_manager.make_edit(selected_flammable, {strength = 0})
             end
 
-            calc_flammability({selected_flammable})
+            refresh = true
+        end
 
-            local screen = game.get_player(event.player_index).gui.screen
-            fill_flammables_icons(screen["maticzplars-settings"]["maticzplars-horizontal-container"]["maticzplars-content-scroll"])
-            return
+        if event.element.name == "maticzplars-affect-products-button" then
+            local current = flammability_manager.get_edit(selected_flammable)
+            if current.dont_affect_products then
+                flammability_manager.clear_edit(selected_flammable)
+            else
+                flammability_manager.make_edit(selected_flammable, {dont_affect_products = true})
+            end
+
+            refresh = true
         end
 
         if string.find(event.element.name, "^maticzplars%-flammable%-button%-") or 
@@ -357,6 +387,14 @@ script.on_event(defines.events.on_gui_click,
             show_description(identifier)
 
             selected_flammable = identifier
+        end
+
+        if refresh then            
+            calc_flammability({selected_flammable})
+
+            local screen = game.get_player(event.player_index).gui.screen
+            fill_flammables_icons(screen["maticzplars-settings"]["maticzplars-horizontal-container"]["maticzplars-content-scroll"])
+            show_description(selected_flammable)
         end
 
     end

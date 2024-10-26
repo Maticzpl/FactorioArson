@@ -9,8 +9,8 @@ storage.flammable = storage.flammable or {}
 ---@type { [string]: Flammability }
 storage.fluids = storage.fluids or {}
 
----@alias Flammability { name: string, fireball: boolean, cooldown: integer?, strength: integer, explosion: string?, explosion_radius: number?, root_element: boolean, calculated: boolean }
----@alias FlammabilityEdit { fireball: boolean?, cooldown: integer?, strength: integer?, explosion: string?, explosion_radius: number?, root_element: boolean? }
+---@alias Flammability { name: string, fireball: boolean, cooldown: integer, strength: number, explosion: string?, explosion_radius: number?, root_element: boolean, calculated: boolean, dont_affect_products: boolean? }
+---@alias FlammabilityEdit { fireball: boolean?, cooldown: integer?, strength: number?, explosion: string?, explosion_radius: number?, root_element: boolean?, dont_affect_products: boolean? }
 
 ---@type { [string]: FlammabilityEdit }
 storage.edits = storage.edits or {}
@@ -19,7 +19,7 @@ storage.edits = storage.edits or {}
 ---@param identifier string
 ---@param fireball boolean
 ---@param cooldown integer
----@param strength integer
+---@param strength number
 ---@param calculated boolean
 ---@param explosion_type string?
 ---@param explosion_radius number?
@@ -40,15 +40,17 @@ end
 --- Makes the fluid flammable
 ---@param identifier string
 ---@param fireball boolean
----@param strength integer
+---@param cooldown integer
+---@param strength number
 ---@param calculated boolean
 ---@param explosion_type string?
 ---@param explosion_radius number?
 ---@param root_element boolean?
-function manager.add_flammable_fluid(identifier, fireball, strength, calculated, explosion_type, explosion_radius, root_element)
+function manager.add_flammable_fluid(identifier, fireball, cooldown, strength, calculated, explosion_type, explosion_radius, root_element)
     storage.fluids[identifier] = {
         name = identifier,
         fireball = fireball,
+        cooldown = cooldown,
         strength = strength,
         explosion = explosion_type,
         explosion_radius = explosion_radius,
@@ -58,7 +60,7 @@ function manager.add_flammable_fluid(identifier, fireball, strength, calculated,
 
     local barrel_identifier = identifier .. "-barrel"
     if storage.flammable[barrel_identifier] == nil then            
-        manager.add_flammable_item(barrel_identifier, fireball, 10, strength, calculated, explosion_type, explosion_radius, false)
+        manager.add_flammable_item(barrel_identifier, fireball, 60, strength, calculated, explosion_type, explosion_radius, false)
     end
 end
 
@@ -91,6 +93,7 @@ function manager.add_flammable(name, flammability, type)
         manager.add_flammable_fluid(
             name,
             flammability.fireball,
+            flammability.cooldown,
             flammability.strength,
             flammability.calculated,
             flammability.explosion,
@@ -100,7 +103,7 @@ function manager.add_flammable(name, flammability, type)
 end
 
 function manager.add_root_element(identifier)
-    manager.add_flammable(identifier, { name = identifier, strength = 0, calculated = false, fireball = false, root_element = true })
+    manager.add_flammable(identifier, { name = identifier, strength = 0, cooldown = 10, calculated = false, fireball = false, root_element = true })
 end
 
 --- Gets flammability of item or fluid

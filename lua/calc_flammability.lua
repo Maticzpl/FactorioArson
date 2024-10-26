@@ -21,11 +21,26 @@ local function flammability_from_parents(identifier)
     local total_item_strength = 0
     local total_fluid_strength = 0
 
+    local parent_count = 0
+    local average_parent_strength = 0
+    local average_parent_explosion = 0
+    local average_parent_cooldown = 0
+    local fireball_parents = 0
+
     local parents, child_ammounts = item_graph.get_parent_items(identifier, true)
     for key, parent in pairs(parents) do
         local parent_flammability = flammability_manager.get_flammability(parent.name)
 
-        if parent_flammability then            
+        if parent_flammability and (parent_flammability.strength or 0) > 0 and not parent_flammability.dont_affect_products then            
+            average_parent_strength = average_parent_strength + parent_flammability.strength
+            average_parent_explosion = average_parent_explosion + parent_flammability.explosion_radius
+            average_parent_cooldown = average_parent_cooldown + parent_flammability.cooldown
+            parent_count = parent_count + 1
+            
+            if parent_flammability.fireball then
+                fireball_parents = fireball_parents + 1
+            end
+
             flammability.strength = flammability.strength + ((parent_flammability.strength * parent.amount) / child_ammounts[key])
             if parent.type == "item" then
                 total_item_strength = total_item_strength + parent_flammability.strength * parent.amount
@@ -35,20 +50,26 @@ local function flammability_from_parents(identifier)
         else
             nonflammable_ammount = nonflammable_ammount + parent.amount
         end
-    end 
+    end
+
+    average_parent_strength  = average_parent_strength  / parent_count
+    average_parent_explosion = average_parent_explosion / parent_count
+    average_parent_cooldown  = average_parent_cooldown  / parent_count
     
     flammability.strength = (flammability.strength / (nonflammable_ammount + 1)) * PARENT_STRENGTH_PRESERVED        
     
-    if flammability.strength > 5 then
-        flammability.explosion_radius = flammability.strength / 14
+    flammability.explosion_radius = average_parent_explosion
+    if flammability.strength - average_parent_strength > 5 then
+        flammability.explosion_radius = flammability.explosion_radius + ((flammability.strength - average_parent_strength) / 10)
+    end
+
+    if flammability.explosion_radius and flammability.explosion_radius > 0 then        
         flammability.explosion = "maticzplars-damage-explosion"
     end
 
-    flammability.fireball = total_fluid_strength > total_item_strength - 1
+    flammability.fireball = (total_fluid_strength > total_item_strength - 1) or (fireball_parents / parent_count >= 0.5)
 
-    if flammability.strength ~= 0 then
-        flammability.cooldown = math.max(5 / flammability.strength, 8) -- TODO: Better equation for that
-    end
+    flammability.cooldown = average_parent_cooldown -- TODO: Better equation for that    
 
     return flammability
 end
@@ -90,10 +111,12 @@ local function calculate_flammabilities(recalculate_identifiers)
         ---@type TraversalData
         local parent = queue:dequeue()
         for _, child in pairs(item_graph.get_child_items(parent.name, true)) do
-
+            local default_flammability = flammability_manager.get_flammability(child.name) 
             local flammability = flammability_from_parents(child.name)
 
-            flammability_manager.add_flammable(child.name, flammability, child.type)
+            if not default_flammability or not default_flammability.strength or default_flammability.calculated then
+                flammability_manager.add_flammable(child.name, flammability, child.type)                
+            end
 
             if explored[child.name] == nil then
                 queue:enqueue({
