@@ -3,15 +3,18 @@ local flammability_manager = require("flammability_manager")
 ---@param event EventData.on_entity_damaged
 local function on_container_fire(event)
     local ent = event.entity
-    if ent.health > settings.global["maticzplars-container-leak-hp"].value then
+    local id = ent.unit_number
+    local health = ent.health
+    local position = ent.position
+    local surface = ent.surface
+
+    if health > settings.global["maticzplars-container-leak-hp"].value then
         return
     end
 
-    local contents = ent.get_inventory(defines.inventory.chest)
-    if contents == nil then
-        contents = ent.get_inventory(defines.inventory.cargo_wagon)
-    end
-    if contents == nil then
+    local contents = ent.get_inventory(defines.inventory.chest) or ent.get_inventory(defines.inventory.cargo_wagon)
+  
+    if contents == nil or not contents.valid then
         return
     end
 
@@ -22,39 +25,45 @@ local function on_container_fire(event)
             goto continue
         end      
 
+        if not contents.valid then
+            return
+        end
+
         local amount = contents.get_item_count(fuel.name)
 
         if storage.cooldown == nil then
             storage.cooldown = {}
         end
         
-        if storage.cooldown[ent.unit_number] == nil or type(storage.cooldown[ent.unit_number]) == "table" then
-            storage.cooldown[ent.unit_number] = 4                   
+        if storage.cooldown[id] == nil or type(storage.cooldown[id]) == "table" then
+            storage.cooldown[id] = 4                   
         end       
 
-        if storage.cooldown[ent.unit_number] <= 0 then                    
-            contents.remove({name=  fuel.name, count = math.min(amount, 5)})
+        if storage.cooldown[id] <= 0 then      
+            if contents.valid then              
+                contents.remove({name=  fuel.name, count = math.min(amount, 5)})
+            end
 
-            ent.surface.create_entity({
+            surface.create_entity({
                 name="fire-flame", 
-                position=ent.position, 
-                initial_ground_flame_count=fuel.strength * math.min(amount/5, fuel.strength / 4)
+                position=position, 
+                initial_ground_flame_count=fuel.strength * math.min(amount/5, fuel.strength / 4) * 2
             })
-            storage.cooldown[ent.unit_number] = 4
+            storage.cooldown[id] = 4
 
-            if fuel.explosion ~= nil and ent.health < 30 then
+            if fuel.explosion ~= nil and fuel.explosion_radius > 0 and health < 30 then
                 local radius = math.min(fuel.explosion_radius * math.min(amount/40, 6), 10) * settings.global["maticzplars-explosion-size"].value
                 local r = math.ceil(radius)
                 for x = -r, r, 1 do
                     for y = -r, r, 1 do
                         if math.sqrt(x*x + y*y) < radius then                                        
                             if x == 0 and y == 0 then
-                                ent.surface.create_entity({name=fuel.explosion, position=ent.position})  
+                                surface.create_entity({name=fuel.explosion, position=position})  
                             else
                                 local pos = {x=0, y=0}
-                                pos.x = ent.position.x + x + 0.5
-                                pos.y = ent.position.y + y + 0.5
-                                ent.surface.create_entity({name="maticzplars-damage-explosion", position=pos})                                          
+                                pos.x = position.x + x + 0.5
+                                pos.y = position.y + y + 0.5
+                                surface.create_entity({name="maticzplars-damage-explosion", position=pos})                                          
                             end    
                         end                              
                     end                                
@@ -67,17 +76,17 @@ local function on_container_fire(event)
                         for y = -r, r, 2 do
                             if math.sqrt(x*x + y*y) < radius then    
                                 local pos = {x=0, y=0}
-                                pos.x = ent.position.x + x + 0.5 + math.random(-2,2)
-                                pos.y = ent.position.y + y + 0.5 + math.random(-2,2)
-                                ent.surface.create_entity({name="fire-flame", position=pos})     
+                                pos.x = position.x + x + 0.5 + math.random(-2,2)
+                                pos.y = position.y + y + 0.5 + math.random(-2,2)
+                                surface.create_entity({name="fire-flame", position=pos, initial_ground_flame_count=fuel.strength*3})     
                             end                              
                         end                                
                     end
                 end
-                storage.cooldown[ent.unit_number] = (math.random(1000, 6000) / amount) * 30
+                storage.cooldown[id] = (math.random(1000, 6000) / amount) * 30
             end
         else
-            storage.cooldown[ent.unit_number] = storage.cooldown[ent.unit_number] - 1
+            storage.cooldown[id] = storage.cooldown[id] - 1
         end
         
         ::continue::

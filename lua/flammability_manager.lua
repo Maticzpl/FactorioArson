@@ -27,12 +27,12 @@ storage.edits = storage.edits or {}
 function manager.add_flammable_item(identifier, fireball, cooldown, strength, calculated, explosion_type, explosion_radius, root_element)
     storage.flammable[identifier] = {
         name = identifier,
-        fireball = fireball,
-        cooldown = cooldown,
-        strength = strength,
-        explosion = explosion_type,
-        explosion_radius = explosion_radius,
-        calculated = calculated,
+        fireball = fireball or false,
+        cooldown = cooldown or 30,
+        strength = strength or 0,
+        explosion = explosion_type or "maticzplars-damage-explosion",
+        explosion_radius = explosion_radius or 0,
+        calculated = calculated or false,
         root_element = root_element or false
     }
 end
@@ -49,12 +49,12 @@ end
 function manager.add_flammable_fluid(identifier, fireball, cooldown, strength, calculated, explosion_type, explosion_radius, root_element)
     storage.fluids[identifier] = {
         name = identifier,
-        fireball = fireball,
-        cooldown = cooldown,
-        strength = strength,
-        explosion = explosion_type,
-        explosion_radius = explosion_radius,
-        calculated = calculated,
+        fireball = fireball or false,
+        cooldown = cooldown or 30,
+        strength = strength or 0,
+        explosion = explosion_type or "matizcplars-damage-explosion",
+        explosion_radius = explosion_radius or 0,
+        calculated = calculated or false,
         root_element = root_element or false
     }
 
@@ -113,17 +113,6 @@ function manager.get_raw_flammability(identifier)
     ---@type Flammability
     local flammability = storage.flammable[identifier] or storage.fluids[identifier]  
 
-    if flammability then
-        flammability.name = flammability.name or identifier
-        flammability.fireball = flammability.fireball or false
-        flammability.cooldown = flammability.cooldown or 9999
-        flammability.strength = flammability.strength or identifier
-        flammability.explosion = flammability.explosion or identifier
-        flammability.explosion_radius = flammability.explosion_radius or 0
-        flammability.root_element = flammability.root_element or false
-        flammability.calculated = flammability.calculated or false
-    end
-
     return flammability
 end
 
@@ -131,10 +120,16 @@ end
 ---@param identifier string
 ---@return Flammability | nil
 function manager.get_flammability(identifier)
-    local flammability = util.copy(manager.get_raw_flammability(identifier)) or {}
+    local flammability = {}
 
-    for k, v in pairs(manager.get_edit(identifier)) do
+    local edit = manager.get_edit(identifier)
+    
+    for k, v in pairs(edit) do
         flammability[k] = v
+    end
+
+    for k, v in pairs(manager.get_raw_flammability(identifier) or {}) do
+        flammability[k] = flammability[k] or v
     end
 
     if table.compare(flammability, {}) then
@@ -142,7 +137,7 @@ function manager.get_flammability(identifier)
     end
 
     -- If there are no edits and not flammable, ignore
-    if table.compare(manager.get_edit(identifier), {}) and
+    if table.compare(edit, {}) and
         (flammability.strength == nil or flammability.strength <= 0) and
         not flammability.root_element then
         return nil
@@ -167,8 +162,9 @@ function manager.get_edit(identifier)
 end
 
 ---@param identifier string
-function manager.clear_edit(identifier)
-    storage.edits[identifier] = nil
+---@param field string
+function manager.clear_edit(identifier, field)
+    storage.edits[identifier][field] = nil
 end
 
 ---@return string[]

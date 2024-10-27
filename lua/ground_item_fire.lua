@@ -24,8 +24,8 @@ local function on_item_fire(item)
             initial_ground_flame_count=math.max(fuel.strength / 9, 1)
         })
 
-        if fuel.explosion ~= nil then
-            local radius = fuel.explosion_radius * 0.3 * settings.global["maticzplars-explosion-size"].value
+        if fuel.explosion ~= nil and fuel.explosion_radius > 0 then
+            local radius = fuel.explosion_radius * 0.8 * settings.global["maticzplars-explosion-size"].value
             local r = math.ceil(radius)
             for x = -r, r, 1 do
                 for y = -r, r, 1 do
@@ -92,7 +92,7 @@ local function init()
                             local items = surface.find_entities_filtered({
                                 type = "item-entity",
                                 position = entity.position,
-                                radius = 2
+                                radius = 2.5
                             })
 
                             for _, item in pairs(items) do

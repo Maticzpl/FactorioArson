@@ -122,6 +122,11 @@ end
 local function show_gui(event)
     local screen = game.get_player(event.player_index).gui.screen
 
+    if screen["maticzplars-settings"] then
+        screen["maticzplars-settings"].destroy()
+        return
+    end
+
     local frame = screen.add({	
         type = "frame",
         name = "maticzplars-settings", 
@@ -295,11 +300,28 @@ local function show_description(identifier)
     button_frame.style.horizontal_align = "center"
     button_frame.style.natural_width = DESC_SECTION_WIDTH
 
+    -- TODO: Make some of those UI elements less tedious to add, unify the event handling where possible instead of writing redundant code
+    -- description_frame.add({
+    --     type = "label",
+    --     name = "maticzplars-strength-slider-label",
+    --     caption = "Flammability: " .. flammability.strength,
+    --     -- style = "orange_label",
+    -- })
+    -- local strength_slider = button_frame.add({
+    --     type = "slider",
+    --     name = "maticzplars-strength-slider",
+    --     value = flammability.strength,
+    --     minimum_value = 0,
+    --     maximum_value = 40
+    -- })
+    -- strength_slider.style.bottom_margin = 12
+
+
     local caption = "Don't affect products"
     if flammability.dont_affect_products then 
         caption = "Affect products" 
     end
-    local affect_button = button_frame.add({
+    button_frame.add({
         type = "button",
         name = "maticzplars-affect-products-button",
         caption = caption
@@ -309,7 +331,7 @@ local function show_description(identifier)
     if (flammability.strength or 0) > 0 then 
         caption = "Make nonflammable" 
     end
-    local flammable_button = button_frame.add({
+    button_frame.add({
         type = "button",
         name = "maticzplars-toggle-flammable-button",
         caption = caption,
@@ -317,21 +339,30 @@ local function show_description(identifier)
 
 end
 
-
-script.on_event(
-    defines.events.on_player_created,
-    --- @param player_created_event EventData.on_player_created
-    function (player_created_event)
-        -- TODO Check how this is supposed to work in multiplayer
-        
-        mod_gui.get_button_flow(game.players[player_created_event.player_index]).add{
-            type="sprite-button", 
-            name="maticzplars-mod-button", 
-            sprite="utility/refresh", -- TODO: a nice sprite for the button
-            style=mod_gui.button_style
-        }        
+---@param event EventData.on_player_joined_game|EventData.on_player_promoted|EventData.on_player_demoted
+local function add_mod_button(event)
+    local player = game.get_player(event.player_index) 
+    if player and not player.admin then
+        local flow = mod_gui.get_button_flow(player)
+        if flow["maticzplars-mod-button"] then
+            flow["maticzplars-mod-button"].destroy()
+        end
+        return
     end
-)
+
+    for _, player in pairs(game.players) do
+        local flow = mod_gui.get_button_flow(player)
+        if not flow["maticzplars-mod-button"] then
+            flow.add{
+                type="sprite-button", 
+                name="maticzplars-mod-button", 
+                sprite="utility/refresh", -- TODO: a nice sprite for the button
+                style=mod_gui.button_style
+            }   
+        end
+    end
+end
+
 
 local selected_flammable = ""
 
@@ -354,7 +385,7 @@ script.on_event(defines.events.on_gui_click,
         if event.element.name == "maticzplars-toggle-flammable-button" then        
             local current = flammability_manager.get_edit(selected_flammable)
             if current.strength and current.strength == 0 then
-                flammability_manager.clear_edit(selected_flammable)
+                flammability_manager.clear_edit(selected_flammable, "strength")
             else
                 flammability_manager.make_edit(selected_flammable, {strength = 0})
             end
@@ -365,7 +396,7 @@ script.on_event(defines.events.on_gui_click,
         if event.element.name == "maticzplars-affect-products-button" then
             local current = flammability_manager.get_edit(selected_flammable)
             if current.dont_affect_products then
-                flammability_manager.clear_edit(selected_flammable)
+                flammability_manager.clear_edit(selected_flammable, "dont_affect_products")
             else
                 flammability_manager.make_edit(selected_flammable, {dont_affect_products = true})
             end
@@ -400,4 +431,4 @@ script.on_event(defines.events.on_gui_click,
     end
 )
 
-return {show_gui = show_gui}
+return {show_gui = show_gui, add_mod_button = add_mod_button}

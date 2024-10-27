@@ -74,15 +74,13 @@ local function flammability_from_parents(identifier)
     return flammability
 end
 
--- TODO make this better, check parents explosion radius, cooldown and take that into account!!!!!
 ---@param recalculate_identifiers string[]?
 local function calculate_flammabilities(recalculate_identifiers)    
-    item_graph.update_recipie_map()
 
     local roots
     if not recalculate_identifiers then
+        item_graph.update_recipie_map()
         roots = flammability_manager.get_root_elements()
-        --- Traverses the graph once and caches the minimum distance to root elements
         item_graph.calculate_depths_from(roots)
     else
         roots = recalculate_identifiers

@@ -6,18 +6,18 @@ local on_tank_fire = require("lua/fluid_tank_fire")
 local init_ground_item_fire_events = require("lua/ground_item_fire")
 local gui = require("lua/gui")
 
-local function load_flammables()    
+local function load_flammables()        
     flammability_manager.add_root_element("water")
     flammability_manager.add_root_element("stone")
     flammability_manager.add_root_element("iron-ore")
     flammability_manager.add_root_element("copper-ore")
     flammability_manager.add_root_element("uranium-ore")
 
-    flammability_manager.add_flammable_item("wood",       false, 15, 2,  false, nil, 0, true)
-    flammability_manager.add_flammable_item("coal",       false, 7,  7,  false, nil, 0, true)
-    flammability_manager.add_flammable_item("solid-fuel", false, 5,  10, false, nil, 0)
+    flammability_manager.add_flammable_item("wood",       false, 30, 2,  false, nil, 0, true)
+    flammability_manager.add_flammable_item("coal",       false, 15, 7,  false, nil, 0, true)
+    flammability_manager.add_flammable_item("solid-fuel", false, 10, 10, false, nil, 0)
 
-    flammability_manager.add_flammable_item("rocket-fuel",       true, 8,  15, false, "maticzplars-rocket-fuel-explosion", 1)
+    flammability_manager.add_flammable_item("rocket-fuel",       true, 10, 15, false, "maticzplars-rocket-fuel-explosion", 1)
     flammability_manager.add_flammable_item("flamethrower-ammo", true, 10, 16, false, "maticzplars-rocket-fuel-explosion", 0.5)
 
     flammability_manager.add_flammable_item("grenade",         false, 15, 2, false, "grenade-explosion", 3)
@@ -40,10 +40,10 @@ local function load_flammables()
     flammability_manager.add_flammable_item("explosives", false, 5, 20, false, "maticzplars-dynamite-explosion", 3)
 
 
-    flammability_manager.add_flammable_fluid("crude-oil",     true, 15, 6,  false, "maticzplars-rocket-fuel-explosion", 0.5, true)
-    flammability_manager.add_flammable_fluid("light-oil",     true, 1,  10, false, "maticzplars-rocket-fuel-explosion", 0.6)
-    flammability_manager.add_flammable_fluid("heavy-oil",     true, 2,  10, false, "maticzplars-rocket-fuel-explosion", 0.6)
-    flammability_manager.add_flammable_fluid("petroleum-gas", true, 2,  10, false, "maticzplars-rocket-fuel-explosion", 0.7)
+    flammability_manager.add_flammable_fluid("crude-oil",     true, 20, 6,  false, "maticzplars-rocket-fuel-explosion", 0.5, true)
+    flammability_manager.add_flammable_fluid("light-oil",     true, 10, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
+    flammability_manager.add_flammable_fluid("heavy-oil",     true, 10, 10, false, "maticzplars-rocket-fuel-explosion", 0.6)
+    flammability_manager.add_flammable_fluid("petroleum-gas", true, 5,  10, false, "maticzplars-rocket-fuel-explosion", 0.7)
 
     ---@type FlammabilityEdit
     local dont_burn = { strength = 0 }
@@ -56,6 +56,7 @@ local function load_flammables()
     flammability_manager.make_edit("steel",         dont_burn)
     flammability_manager.make_edit("barrel",        dont_burn)
     flammability_manager.make_edit("rocket-part",   dont_burn)
+    flammability_manager.make_edit("sulfur",        { explosion_radius = 0 })
     -- Space Age
     flammability_manager.make_edit("superconductor",    dont_burn)
     flammability_manager.make_edit("tungsten-carbide",  dont_burn)
@@ -67,28 +68,52 @@ local function load_flammables()
         flammability_manager.make_edit(name, dont_burn)
     end
 
-
     calculate_flammabilities()
 end
 
+function init_storage()
+    storage.flammable = storage.flammable or {}
+    storage.fluids = storage.fluids or {}
+    storage.edits = storage.edits or {}
+    storage.graph = storage.graph or {}    
+
+    storage.last_tick = storage.last_tick or 0
+    storage.invocations = storage.invocations or 0
+end
+
 script.on_init(function ()
+    init_storage()
     load_flammables()
 end)
-script.on_configuration_changed(load_flammables)
+script.on_configuration_changed(function ()
+    init_storage()
+    load_flammables()
+end)
 
-script.on_event(
-    defines.events.on_entity_damaged, 
+script.on_event(defines.events.on_player_joined_game, gui.add_mod_button)
+script.on_event(defines.events.on_player_promoted,    gui.add_mod_button)
+script.on_event(defines.events.on_player_demoted,     gui.add_mod_button)
+
+script.on_event(defines.events.on_entity_damaged, 
 	--- @param event EventData.on_entity_damaged
-    function (event)        
-        if event.entity.get_inventory(defines.inventory.chest) or 
-            event.entity.get_inventory(defines.inventory.cargo_wagon) or 
-            event.entity.get_inventory(defines.inventory.car_trunk) then
-            on_container_fire(event)
-        elseif event.entity.type == "fluid-wagon" or event.entity.type == "storage-tank" then
-            on_tank_fire(event)
-        else
-            on_belt_fire(event)
-        end
+    function (event)  
+        if event.tick > storage.last_tick then      
+            storage.invocations = storage.invocations + 1
+            if storage.invocations > 15 then
+                storage.last_tick = event.tick      
+                storage.invocations = 0
+            end
+
+            if event.entity.get_inventory(defines.inventory.chest) or 
+                event.entity.get_inventory(defines.inventory.cargo_wagon) or 
+                event.entity.get_inventory(defines.inventory.car_trunk) then
+                on_container_fire(event)
+            elseif event.entity.type == "fluid-wagon" or event.entity.type == "storage-tank" then
+                on_tank_fire(event)
+            else
+                on_belt_fire(event)
+            end
+        end 
     end,
     {
         {filter = "damage-type", type = "fire"},
@@ -118,7 +143,7 @@ script.on_event(
     function (event)
         if math.random(0, 100) < settings.global["maticzplars-pole-fire"].value then   
             local has_power = false
-            for k, v in pairs(event.entity.electric_network_statistics.output_counts) do
+            for _, v in pairs(event.entity.electric_network_statistics.output_counts) do
                 if v > 0.0 then
                     has_power = true
                 end
